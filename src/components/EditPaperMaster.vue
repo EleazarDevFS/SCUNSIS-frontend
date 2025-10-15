@@ -228,7 +228,7 @@ const onExcelChange = async (event) => {
   const formData = new FormData();
   formData.append('file', file);
   try {
-    const response = await fetch('http://localhost:3001/api/upload-excel', {
+    const response = await fetch('http://localhost:8082/api/file', {
       method: 'POST',
       body: formData
     });
@@ -239,7 +239,7 @@ const onExcelChange = async (event) => {
       if (rows.length > 0) {
         const persona = rows[0];
         // Enviar persona al backend para registrar y obtener folio
-        const folioRes = await fetch('http://localhost:3001/api/registrar-receptor', {
+        const folioRes = await fetch('http://localhost:8082/api/v1/receiver', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

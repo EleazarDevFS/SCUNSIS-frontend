@@ -22,6 +22,22 @@ export default {
 
             });
         });
+
+        const getFolio= async ()=> {
+            try{
+                const folioResponse = await fetch('http://localhost:8082/api/v1/folio'); 
+                if(!folioResponse.ok){
+                    throw new Error(`Http error! status: ${folioResponse.status}`);
+                }
+
+                const data = await folioResponse.json();
+                
+
+            }catch(error){
+                // Se cambiaran los alerts por un toast
+                alert('Error de respuesta al servidor ', error);
+            }
+        }
     }
 }
 
@@ -29,7 +45,7 @@ export default {
 </script>
 <template>
     <div class="select-event">
-        <button class="btn-button">
+        <button class="btn-button" @click="getFolio">
             <span>
                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
                     fill="currentColor">

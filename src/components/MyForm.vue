@@ -131,13 +131,10 @@ watch(fechaSeleccionada, (nuevaFecha) => {
         <div class="title-form">
             <h3>{{ titulo }}</h3>
         </div>
-
         <hr />
-        <div class="grupo-formulario">
-            <label for="numero-jornadas">Número de constancias a generar</label>
-            <input type="number" id="numero-jornadas" class="campo-texto" placeholder="10">
+        <div>
+            <label for="num-folio"></label>
         </div>
-
         <div class="grupo-formulario">
             <label for="excel-jornadas">Cargar excel con los datos de las personas</label>
             <v-file-input label="Archivo Excel" accept=".xlsx" multiple 

@@ -37,7 +37,7 @@ export default {
 </script>
 <template>
   <div class="container-app">
-    <template v-if="$route.path === '/'">
+    <template v-if="$route.path === '/inicio'">
       <div class="login-center">
          <LoginView/>
       </div>

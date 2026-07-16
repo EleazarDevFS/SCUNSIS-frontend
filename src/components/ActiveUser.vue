@@ -1,8 +1,10 @@
 <script>
 import Logo from '../components/Logo.vue';
+import HeaderNav from '../components/NavigationGC.vue';
 export default {
     components: {
-        Logo
+        Logo,
+        HeaderNav
     },
     methods: {
         handleLogoClick(view) {
@@ -16,6 +18,7 @@ export default {
         <div class="logo-container">
             <Logo class="logo-unsis" @change-view="handleLogoClick" />
         </div>
+        <HeaderNav class="navigation"/>
         <div class="iconUserActive">
             <span id="text-user">Nombre de usuario</span>
             <svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px"
@@ -62,5 +65,9 @@ export default {
 
 .svg-icon {
     position: relative;
+}
+.navigation{
+    width: 60%;
+    height: 90%;
 }
 </style>

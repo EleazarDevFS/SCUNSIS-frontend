@@ -104,15 +104,12 @@ export default {
                 Otros
             </span>
         </button>
-        
-        
     </div>
 </template>
 <style scoped>
 .select-event {
     display: flex;
-    position: absolute;
-    width: calc(100% - 200px);
+    width: auto;
     justify-content: space-between;
     border: solid 5px rgba(0, 0, 0, .1);
 }

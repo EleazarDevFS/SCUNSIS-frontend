@@ -192,7 +192,7 @@ function renderOn(ctx, scale) {
   ctx.save()
   ctx.scale(scale, scale)
   if (image.value) {
-    ctx.drawImage(image.value, 0, 0, W * scale, H * scale)
+    ctx.drawImage(image.value, 0, 0, W, H)
   } else {
     ctx.fillStyle = '#fffdfa'
     ctx.fillRect(0, 0, W, H)

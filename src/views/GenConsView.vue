@@ -1,15 +1,11 @@
 <script>
 import { ref } from 'vue';
-import AsideComponent from '../components/AsideComponent.vue';
-import ActiveUser from '../components/ActiveUser.vue';
 import NavigationGC from '../components/NavigationGC.vue';
 import MyForm from '../components/MyForm.vue';
 
 export default {
     name: 'GenConsView',
     components: {
-        AsideComponent,
-        ActiveUser,
         NavigationGC,
         MyForm
     },

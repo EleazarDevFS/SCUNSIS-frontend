@@ -1,13 +1,7 @@
 <script>
-// Se importan los componentes AsideComponent y ActiveUser
-import ActiveUser from '../components/ActiveUser.vue';
-import AsideComponent from '../components/AsideComponent.vue';
 export default {
   name: 'InicioView',
-  components: {
-    ActiveUser,
-    AsideComponent
-  }, mounted() {
+  mounted() {
     // Cada que se abra esta vista se ejecutarán las siguientes lineas de código
     document.body.style.background = "#EBE7E7"
     // Botones shortcuts de inicio

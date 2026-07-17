@@ -1,11 +1,8 @@
 <script>
-import ActiveUser from '../components/ActiveUser.vue';
-import AsideComponent from '../components/AsideComponent.vue';
 import { api } from '../utils/api.js';
 
 export default {
     name: 'ConfiguracionView',
-    components: { AsideComponent, ActiveUser },
     data() {
         return {
             activeTab: 'senders',

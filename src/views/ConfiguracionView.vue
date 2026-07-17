@@ -26,6 +26,16 @@ export default {
             showReceiverForm: false,
             editingReceiver: null,
             receiverForm: { nombre: '', primer_apellido: '', segundo_apellido: '', telefono: '', email: '', grado_academico: '' },
+            bulkFile: null,
+            bulkEventId: '',
+            bulkActivityId: '',
+            bulkSenderId: '',
+            bulkRole: '',
+            bulkEvents: [],
+            bulkActivities: [],
+            bulkSenders: [],
+            bulkResult: null,
+            bulkSubmitting: false,
             loading: false
         }
     },
@@ -296,6 +306,58 @@ export default {
             } catch (err) {
                 alert(err.message);
             }
+        },
+        async openBulkUpload() {
+            this.bulkResult = null;
+            this.bulkFile = null;
+            this.bulkEventId = '';
+            this.bulkActivityId = '';
+            this.bulkSenderId = '';
+            this.bulkRole = '';
+            try {
+                const [evtRes, actRes, sndRes] = await Promise.all([
+                    fetch(`${API}/event`),
+                    fetch(`${API}/activity`),
+                    fetch(`${API}/sender`)
+                ]);
+                this.bulkEvents = await evtRes.json();
+                this.bulkActivities = await actRes.json();
+                this.bulkSenders = await sndRes.json();
+            } catch (err) {
+                alert('Error al cargar datos para el formulario');
+            }
+        },
+        onBulkFileChange(event) {
+            this.bulkFile = event.target.files[0];
+        },
+        getFilteredActivities() {
+            if (!this.bulkEventId) return this.bulkActivities;
+            return this.bulkActivities.filter(a => a.eventId === Number(this.bulkEventId));
+        },
+        async submitBulkUpload() {
+            if (!this.bulkFile) { alert('Seleccione un archivo Excel'); return; }
+            if (!this.bulkEventId) { alert('Seleccione un evento'); return; }
+            if (!this.bulkActivityId) { alert('Seleccione una actividad'); return; }
+            if (!this.bulkSenderId) { alert('Seleccione un emisor'); return; }
+            this.bulkSubmitting = true;
+            this.bulkResult = null;
+            try {
+                const formData = new FormData();
+                formData.append('file', this.bulkFile);
+                formData.append('eventId', this.bulkEventId);
+                formData.append('activityId', this.bulkActivityId);
+                formData.append('senderId', this.bulkSenderId);
+                if (this.bulkRole) formData.append('role', this.bulkRole);
+                const res = await fetch(`${API}/proof/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                this.bulkResult = await res.json();
+            } catch (err) {
+                alert('Error al procesar la carga masiva');
+            } finally {
+                this.bulkSubmitting = false;
+            }
         }
     },
     mounted() {
@@ -312,6 +374,7 @@ export default {
                 <button :class="['tab', { active: activeTab === 'events' }]" @click="activeTab = 'events'; fetchEvents()">Eventos</button>
                 <button :class="['tab', { active: activeTab === 'activities' }]" @click="activeTab = 'activities'; fetchActivities()">Actividades</button>
                 <button :class="['tab', { active: activeTab === 'receivers' }]" @click="activeTab = 'receivers'; fetchReceivers()">Receptores</button>
+                <button :class="['tab', { active: activeTab === 'bulk' }]" @click="activeTab = 'bulk'; openBulkUpload()">Carga masiva</button>
             </div>
             <div class="tab-content">
                 <div v-if="activeTab === 'senders'">
@@ -560,6 +623,69 @@ export default {
                     </table>
                     <div v-else class="empty">No hay receptores registrados</div>
                 </div>
+                <div v-if="activeTab === 'bulk'">
+                    <div class="section-header">
+                        <h3>Carga masiva de constancias</h3>
+                    </div>
+                    <div class="form-card">
+                        <div class="form-row">
+                            <label>Archivo Excel (.xlsx):</label>
+                            <input type="file" accept=".xlsx" @change="onBulkFileChange" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Evento:</label>
+                            <select v-model="bulkEventId" @change="bulkActivityId = ''" class="form-input">
+                                <option value="">Seleccione un evento</option>
+                                <option v-for="e in bulkEvents" :key="e.eventId" :value="e.eventId">{{ e.eventName }}</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Actividad:</label>
+                            <select v-model="bulkActivityId" class="form-input">
+                                <option value="">Seleccione una actividad</option>
+                                <option v-for="a in getFilteredActivities()" :key="a.activityId" :value="a.activityId">{{ a.activityName }}</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Emisor:</label>
+                            <select v-model="bulkSenderId" class="form-input">
+                                <option value="">Seleccione un emisor</option>
+                                <option v-for="s in bulkSenders" :key="s.senderId" :value="s.senderId">{{ s.name }}</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Rol por defecto (opcional):</label>
+                            <select v-model="bulkRole" class="form-input">
+                                <option value="">Usar columna ROL del Excel</option>
+                                <option value="PONENTE">Ponente</option>
+                                <option value="PARTICIPANTE">Participante</option>
+                                <option value="ORGANIZADOR">Organizador</option>
+                                <option value="RECONOCIMIENTO">Reconocimiento</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button @click="submitBulkUpload" :disabled="bulkSubmitting" class="btn-save">
+                                {{ bulkSubmitting ? 'Procesando...' : 'Generar constancias' }}
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="bulkResult" class="result-card">
+                        <h4>Resultado</h4>
+                        <div class="result-stats">
+                            <span class="stat-ok">Exitosas: {{ bulkResult.successCount }}</span>
+                            <span class="stat-err">Errores: {{ bulkResult.errorCount }}</span>
+                            <span class="stat-total">Total filas: {{ bulkResult.totalRows }}</span>
+                        </div>
+                        <div v-if="bulkResult.generatedFolios?.length" class="folios-list">
+                            <strong>Folios generados:</strong>
+                            <span v-for="f in bulkResult.generatedFolios" :key="f" class="folio-badge">{{ f }}</span>
+                        </div>
+                        <div v-if="bulkResult.errors?.length" class="errors-list">
+                            <strong>Errores:</strong>
+                            <ul><li v-for="(err, i) in bulkResult.errors" :key="i">{{ err }}</li></ul>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -733,10 +859,51 @@ main {
     padding: 30px;
     color: #888;
 }
-.placeholder-content {
-    text-align: center;
-    padding: 40px;
-    color: #aaa;
-    font-style: italic;
+.result-card {
+    background: #f0faf0;
+    border: 1px solid #c8e6c9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 16px;
+}
+.result-card h4 {
+    margin: 0 0 12px 0;
+    color: #2e7d32;
+}
+.result-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.stat-ok { color: #2e7d32; font-weight: 600; }
+.stat-err { color: #c62828; font-weight: 600; }
+.stat-total { color: #555; font-weight: 600; }
+.folios-list {
+    margin-bottom: 12px;
+}
+.folio-badge {
+    display: inline-block;
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin: 3px;
+    font-family: monospace;
+}
+.errors-list {
+    background: #fff5f5;
+    border: 1px solid #ffcdd2;
+    border-radius: 6px;
+    padding: 12px;
+}
+.errors-list ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+}
+.errors-list li {
+    color: #c62828;
+    font-size: 0.9rem;
 }
 </style>

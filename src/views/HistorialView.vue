@@ -70,7 +70,7 @@ export default {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `constancia_${folio}.pdf`;
+                a.download = `constancia_${folio}_.pdf`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);

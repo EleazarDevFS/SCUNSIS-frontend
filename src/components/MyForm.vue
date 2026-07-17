@@ -18,6 +18,17 @@ const receptor = ref('')
 const fechaSeleccionada = ref('')
 const cerrarFormulario = () => {}
 
+function incrementFolio(folio) {
+    const match = folio.match(/^(.*?)(\d+)$/)
+    if (match) {
+        const prefix = match[1]
+        const num = parseInt(match[2], 10)
+        const padded = String(num + 1).padStart(match[2].length, '0')
+        return prefix + padded
+    }
+    return folio + '_1'
+}
+
 const submitForm = async () => {
     if (!excelData.value.length) {
         toast.error('Primero carga un archivo Excel válido.')
@@ -33,7 +44,24 @@ const submitForm = async () => {
     let allFolios = []
     const firstPersona = excelData.value[0]
 
-    for (const persona of excelData.value) {
+    let currentFolio = null
+    try {
+        const folioRes = await api('/api/v1/folio')
+        if (folioRes.ok) {
+            const folioData = await folioRes.json()
+            currentFolio = folioData.folio || folioData
+        }
+    } catch (_) {}
+
+    for (const [index, persona] of excelData.value.entries()) {
+        if (index > 0 && currentFolio) {
+            currentFolio = incrementFolio(currentFolio)
+        }
+
+        if (currentFolio) {
+            editPaperMasterRef.value?.updateFolio(currentFolio)
+        }
+
         editPaperMasterRef.value?.updatePreview(persona)
 
         const image = editPaperMasterRef.value?.getCanvasImage?.(3)
@@ -45,7 +73,7 @@ const submitForm = async () => {
             const response = await api('/api/v1/proof/generate-pdfs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ canvasImage: image, data: personData })
+                body: JSON.stringify({ canvasImage: image, data: personData, folios: currentFolio ? [currentFolio] : undefined })
             })
             if (response.ok) {
                 const result = await response.json()

@@ -16,6 +16,7 @@ export default {
             filterDateFrom: '',
             filterDateTo: '',
             expandedFolio: null,
+            downloadingFolio: null,
             userRole: localStorage.getItem('role')
         }
     },
@@ -63,6 +64,7 @@ export default {
             this.filteredProofs = result;
         },
         async downloadPdf(folio) {
+            this.downloadingFolio = folio;
             try {
                 const res = await api(`/api/v1/proof/${folio}/pdf`);
                 if (!res.ok) throw new Error('Error al descargar PDF');
@@ -77,6 +79,8 @@ export default {
                 URL.revokeObjectURL(url);
             } catch (err) {
                 if (err.message !== 'Sesion expirada') this.toast.error(err.message);
+            } finally {
+                this.downloadingFolio = null;
             }
         },
         async deleteProof(folio) {
@@ -175,11 +179,12 @@ export default {
                         <div class="detail-item detail-full"><span class="detail-label">Ruta PDF</span>{{ p.rutaPdf || '—' }}</div>
                     </div>
                     <div class="detail-actions">
-                        <button @click="downloadPdf(p.folio)" class="btn-download">
-                            <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
+                        <button @click="downloadPdf(p.folio)" class="btn-download" :disabled="downloadingFolio === p.folio">
+                            <span v-if="downloadingFolio === p.folio" class="spinner-btn-sm"></span>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
                                 <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
                             </svg>
-                            Descargar PDF
+                            {{ downloadingFolio === p.folio ? 'Descargando...' : 'Descargar PDF' }}
                         </button>
                         <button v-if="isAdmin" @click="deleteProof(p.folio)" class="btn-delete">
                             <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
@@ -512,6 +517,20 @@ export default {
     gap: 10px;
 }
 
+.spinner-btn-sm {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin-btn 0.6s linear infinite;
+}
+
+@keyframes spin-btn {
+    to { transform: rotate(360deg); }
+}
+
 .btn-download {
     display: flex;
     align-items: center;
@@ -527,9 +546,14 @@ export default {
     transition: all 0.2s ease;
 }
 
-.btn-download:hover {
+.btn-download:hover:not(:disabled) {
     background: var(--primary-light);
     transform: translateY(-1px);
+}
+
+.btn-download:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .btn-delete {

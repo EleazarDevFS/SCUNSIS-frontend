@@ -25,6 +25,7 @@ const selectedEventId = ref('')
 const selectedActivityId = ref('')
 const selectedSenderId = ref('')
 const selectedRole = ref('PARTICIPANTE')
+const generando = ref(false)
 
 onMounted(async () => {
     try {
@@ -66,64 +67,74 @@ const submitForm = async () => {
         return;
     }
 
+    generando.value = true
     let totalCount = 0
     let allFolios = []
     const firstPersona = excelData.value[0]
 
-    let currentFolio = null
     try {
-        const folioRes = await api('/api/v1/folio')
-        if (folioRes.ok) {
-            const folioData = await folioRes.json()
-            currentFolio = folioData.folio || folioData
-        }
-    } catch (_) {}
-
-    for (const [index, persona] of excelData.value.entries()) {
-        if (index > 0 && currentFolio) {
-            currentFolio = incrementFolio(currentFolio)
-        }
-
-        if (currentFolio) {
-            editPaperMasterRef.value?.updateFolio(currentFolio)
-        }
-
-        editPaperMasterRef.value?.updatePreview(persona)
-
-        const image = editPaperMasterRef.value?.getCanvasImage?.(3)
-        if (!image) continue
-
-        const personData = Array.isArray(persona) ? [persona] : [[persona.nombre || '', persona.primer_apellido || '', persona.segundo_apellido || '', persona.grado_academico || '', persona.grado || '']]
-
-        const body = {
-            canvasImage: image,
-            data: personData,
-            folios: currentFolio ? [currentFolio] : undefined
-        }
-
-        if (selectedSenderId.value && selectedActivityId.value && selectedEventId.value && selectedRole.value) {
-            body.senderId = Number(selectedSenderId.value)
-            body.activityId = Number(selectedActivityId.value)
-            body.eventId = Number(selectedEventId.value)
-            body.role = selectedRole.value
-        }
-
+        let currentFolio = null
         try {
-            const response = await api('/api/v1/proof/generate-pdfs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            })
-            if (response.ok) {
-                const result = await response.json()
-                totalCount += result.count || 1
-                if (result.folios) allFolios.push(...result.folios)
-                if (result.generatedFolios) allFolios.push(...result.generatedFolios)
+            const folioRes = await api('/api/v1/folio')
+            if (folioRes.ok) {
+                const folioData = await folioRes.json()
+                currentFolio = folioData.folio || folioData
             }
         } catch (_) {}
-    }
 
-    editPaperMasterRef.value?.updatePreview(firstPersona)
+        for (const [index, persona] of excelData.value.entries()) {
+            if (index > 0 && currentFolio) {
+                currentFolio = incrementFolio(currentFolio)
+            }
+
+            if (currentFolio) {
+                editPaperMasterRef.value?.updateFolio(currentFolio)
+            }
+
+            editPaperMasterRef.value?.updatePreview(persona)
+
+            const image = editPaperMasterRef.value?.getCanvasImage?.(3)
+            if (!image) continue
+
+            const personData = Array.isArray(persona) ? [persona] : [[persona.nombre || '', persona.primer_apellido || '', persona.segundo_apellido || '', persona.grado_academico || '', persona.grado || '']]
+
+            const body = {
+                canvasImage: image,
+                data: personData,
+                folios: currentFolio ? [currentFolio] : undefined
+            }
+
+            const hasMeta = selectedSenderId.value && selectedActivityId.value && selectedEventId.value
+            if (hasMeta) {
+                body.senderId = Number(selectedSenderId.value)
+                body.activityId = Number(selectedActivityId.value)
+                body.eventId = Number(selectedEventId.value)
+                if (excelHasRole.value && Array.isArray(persona) && excelRolIndex.value >= 0 && persona[excelRolIndex.value]) {
+                    body.role = persona[excelRolIndex.value]
+                } else if (selectedRole.value) {
+                    body.role = selectedRole.value
+                }
+            }
+
+            try {
+                const response = await api('/api/v1/proof/generate-pdfs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                })
+                if (response.ok) {
+                    const result = await response.json()
+                    totalCount += result.count || 1
+                    if (result.folios) allFolios.push(...result.folios)
+                    if (result.generatedFolios) allFolios.push(...result.generatedFolios)
+                }
+            } catch (_) {}
+        }
+
+        editPaperMasterRef.value?.updatePreview(firstPersona)
+    } finally {
+        generando.value = false
+    }
 
     if (totalCount > 0) {
         if (allFolios.length) {
@@ -152,6 +163,7 @@ function handleFileChange(event) {
 
 const excelData = ref([])
 const excelHasRole = ref(false)
+const excelRolIndex = ref(-1)
 
 async function onExcelChange(event) {
   const file = event.target.files ? event.target.files[0] : event;
@@ -167,13 +179,16 @@ async function onExcelChange(event) {
     if (result.data && Array.isArray(result.data) && result.data.length > 1) {
       const headers = result.data[0].map(h => (h || '').toUpperCase())
       excelHasRole.value = headers.includes('ROL')
+      excelRolIndex.value = headers.indexOf('ROL')
       excelData.value = result.data.slice(1);
     } else if (result.folios && Array.isArray(result.folios) && result.folios.length > 0) {
       excelHasRole.value = false
+      excelRolIndex.value = -1
       excelData.value = result.folios;
     } else {
       excelData.value = [];
       excelHasRole.value = false
+      excelRolIndex.value = -1
     }
     if (excelData.value.length > 0) {
       editPaperMasterRef.value?.updatePreview(excelData.value[0]);
@@ -242,9 +257,16 @@ watch(fechaSeleccionada, (nuevaFecha) => {
             <label>Cargar hoja maestra</label>
             <EditPaperMaster ref="editPaperMasterRef" :valorTexto="mensaje" />
         </div>
+        <div v-if="generando" class="progress-bar-container">
+            <div class="progress-bar"></div>
+            <span class="progress-text">Generando constancias...</span>
+        </div>
         <div class="form-actions">
-            <button type="button" class="btn-secondary" @click="cerrarFormulario">Cancelar</button>
-            <button type="submit" class="btn-primary">Generar</button>
+            <button type="button" class="btn-secondary" @click="cerrarFormulario" :disabled="generando">Cancelar</button>
+            <button type="submit" class="btn-primary" :disabled="generando">
+                <span v-if="generando" class="spinner-btn"></span>
+                {{ generando ? 'Generando...' : 'Generar' }}
+            </button>
         </div>
     </form>
 </template>
@@ -323,6 +345,62 @@ watch(fechaSeleccionada, (nuevaFecha) => {
     gap: 12px;
 }
 
+.progress-bar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -30%;
+    width: 30%;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    animation: bar-loading 1.2s ease-in-out infinite;
+}
+
+@keyframes bar-loading {
+    0% { left: -30%; }
+    100% { left: 100%; }
+}
+
+.progress-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.spinner-btn {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin-btn 0.6s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+@keyframes spin-btn {
+    to { transform: rotate(360deg); }
+}
+
 .btn-primary {
     background: var(--primary);
     color: #fff;
@@ -335,8 +413,18 @@ watch(fechaSeleccionada, (nuevaFecha) => {
     transition: background var(--transition);
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background: var(--primary-light);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .btn-secondary {

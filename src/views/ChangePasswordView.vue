@@ -4,64 +4,67 @@ import { useToast } from 'vue-toastification'
 import { useRouter } from 'vue-router'
 import Logo from '../components/Logo.vue'
 import { useAuth } from '../store/auth.js'
+import { api } from '../utils/api.js'
 
 const toast = useToast()
 const router = useRouter()
-const { login: authLogin } = useAuth()
+const { user, logout } = useAuth()
 
-const username = ref('')
-const password = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
 const loading = ref(false)
 
-async function login() {
-  if (!username.value || !password.value) {
-    toast.error('Por favor ingresa usuario y contraseña')
+async function changePassword() {
+  if (!newPassword.value || !confirmPassword.value) {
+    toast.error('Por favor completa todos los campos')
+    return
+  }
+  if (newPassword.value.length < 4) {
+    toast.error('La contraseña debe tener al menos 4 caracteres')
+    return
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    toast.error('Las contraseñas no coinciden')
     return
   }
   loading.value = true
   try {
-    const response = await fetch('http://localhost:8082/api/login', {
+    const response = await api('/api/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username.value, password: password.value })
+      body: JSON.stringify({ newPassword: newPassword.value })
     })
-    const data = await response.json()
-    if (response.ok && data.success) {
-      authLogin(data.token, data.username, data.role, data.mustChangePassword)
-      toast.success('¡Iniciaste sesión exitosamente!')
-      setTimeout(() => {
-        if (data.mustChangePassword) {
-          router.push('/cambiar-contrasenia')
-        } else {
-          router.push('/inicio')
-        }
-      }, 300)
+    if (response.ok) {
+      toast.success('Contraseña actualizada exitosamente')
+      logout()
+      setTimeout(() => router.push('/'), 300)
     } else {
-      toast.error(data.message || 'Error al iniciar sesión')
+      const data = await response.json()
+      toast.error(data.message || 'Error al cambiar contraseña')
     }
-  } catch (err) {
+  } catch {
     toast.error('No se pudo conectar al servidor')
   } finally {
     loading.value = false
   }
 }
+
+function cancel() {
+  logout()
+  router.push('/')
+}
 </script>
 
 <template>
-  <div class="login-wrapper">
-    <div class="login-card">
+  <div class="change-password-wrapper">
+    <div class="change-card">
       <div class="brand-panel">
         <div class="brand-content">
           <Logo class="brand-logo" />
           <h1 class="brand-title">SC-UNSIS</h1>
           <p class="brand-sub">Sistema de Constancias Universitarias</p>
           <div class="brand-divider"></div>
-          <p class="brand-desc">Gestión eficiente de constancias académicas y reconocimientos</p>
-          <div class="brand-features">
-            <span class="feature"><svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg> Generación automatizada</span>
-            <span class="feature"><svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg> Carga masiva Excel</span>
-            <span class="feature"><svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg> Historial completo</span>
-          </div>
+          <p class="brand-desc">Bienvenido, {{ user.username || 'usuario' }}. Por seguridad debes cambiar tu contraseña.</p>
         </div>
         <div class="brand-bg-shapes">
           <div class="shape shape-1"></div>
@@ -72,26 +75,23 @@ async function login() {
       <div class="form-panel">
         <div class="form-container">
           <div class="form-header">
-            <h2 class="form-title">Bienvenido</h2>
-            <p class="form-sub">Ingresa tus credenciales para acceder</p>
+            <div class="lock-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" height="32px" viewBox="0 -960 960 960" width="32px" fill="var(--primary)"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm240-120q33 0 56.5-23.5T560-360q0-33-23.5-56.5T480-440q-33 0-56.5 23.5T400-360q0 33 23.5 56.5T480-280ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z"/></svg>
+            </div>
+            <h2 class="form-title">Cambiar contraseña</h2>
+            <p class="form-sub">Este es tu primer inicio de sesión. Establece una nueva contraseña.</p>
           </div>
-          <form @submit.prevent="login" class="login-form">
+          <form @submit.prevent="changePassword" class="change-form">
             <div class="field-group">
-              <label class="field-label">
-                <svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-640q0-33-23.5-56.5T480-720q-33 0-56.5 23.5T400-640q0 33 23.5 56.5T480-560ZM160-160v-112q0-34 17.5-62.5T224-346q62-31 126-46.5T480-408q66 0 130 15.5T736-346q29 15 46.5 43.5T800-240v112H160Zm80-80h480v-32q0-11-5.5-20T700-290q-54-27-109-40.5T480-344q-56 0-111 13.5T260-290q-9 5-14.5 14t-5.5 20v32Z"/></svg>
-                Usuario
-              </label>
+              <label class="field-label">Nueva contraseña</label>
               <div class="input-wrapper">
-                <input v-model="username" type="text" placeholder="Ingresa tu usuario" />
+                <input v-model="newPassword" type="password" placeholder="Nueva contraseña" minlength="4" />
               </div>
             </div>
             <div class="field-group">
-              <label class="field-label">
-                <svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm240-120q33 0 56.5-23.5T560-360q0-33-23.5-56.5T480-440q-33 0-56.5 23.5T400-360q0 33 23.5 56.5T480-280ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z"/></svg>
-                Contraseña
-              </label>
+              <label class="field-label">Confirmar contraseña</label>
               <div class="input-wrapper">
-                <input v-model="password" type="password" placeholder="Ingresa tu contraseña" />
+                <input v-model="confirmPassword" type="password" placeholder="Repite la contraseña" minlength="4" />
               </div>
             </div>
             <v-btn
@@ -100,10 +100,19 @@ async function login() {
               size="large"
               block
               :loading="loading"
-              @click="login"
-              class="login-btn"
+              @click="changePassword"
+              class="change-btn"
             >
-              Iniciar sesión
+              Cambiar contraseña
+            </v-btn>
+            <v-btn
+              variant="text"
+              size="small"
+              block
+              @click="cancel"
+              class="cancel-btn"
+            >
+              Cerrar sesión
             </v-btn>
           </form>
         </div>
@@ -113,7 +122,7 @@ async function login() {
 </template>
 
 <style scoped>
-.login-wrapper {
+.change-password-wrapper {
   position: relative;
   z-index: 1;
   animation: fadeInUp 0.7s ease;
@@ -127,7 +136,7 @@ async function login() {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.login-card {
+.change-card {
   display: flex;
   width: 100%;
   max-width: 820px;
@@ -140,7 +149,6 @@ async function login() {
     0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-/* ---- Brand Panel (left) ---- */
 .brand-panel {
   flex: 0 0 360px;
   position: relative;
@@ -191,35 +199,11 @@ async function login() {
 }
 
 .brand-desc {
-  font-size: 0.82rem;
-  opacity: 0.6;
-  line-height: 1.6;
-  margin-bottom: 24px;
-}
-
-.brand-features {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
-  max-width: 220px;
-  margin: 0 auto;
-}
-
-.feature {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   opacity: 0.7;
+  line-height: 1.5;
 }
 
-.feature svg {
-  flex-shrink: 0;
-  color: #4ade80;
-}
-
-/* Shapes decoration */
 .brand-bg-shapes {
   position: absolute;
   inset: 0;
@@ -257,7 +241,6 @@ async function login() {
   right: -30px;
 }
 
-/* ---- Form Panel (right) ---- */
 .form-panel {
   flex: 1;
   display: flex;
@@ -274,6 +257,11 @@ async function login() {
 
 .form-header {
   margin-bottom: 28px;
+  text-align: center;
+}
+
+.lock-icon {
+  margin-bottom: 12px;
 }
 
 .form-title {
@@ -284,11 +272,12 @@ async function login() {
 }
 
 .form-sub {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 
-.login-form {
+.change-form {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -321,6 +310,7 @@ async function login() {
   color: var(--text-primary);
   transition: all 0.25s ease;
   outline: none;
+  box-sizing: border-box;
 }
 
 .input-wrapper input::placeholder {
@@ -334,11 +324,7 @@ async function login() {
   box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.1);
 }
 
-.input-wrapper input:hover:not(:focus) {
-  border-color: #d1d5db;
-}
-
-.login-btn {
+.change-btn {
   margin-top: 4px;
   height: 48px;
   font-weight: 700;
@@ -347,17 +333,14 @@ async function login() {
   letter-spacing: 0.5px;
   border-radius: 10px;
   box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.25);
-  transition: all 0.25s ease;
 }
 
-.login-btn:hover {
-  box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.35);
-  transform: translateY(-1px);
+.cancel-btn {
+  color: var(--text-muted);
 }
 
-/* ---- Responsive ---- */
 @media (max-width: 700px) {
-  .login-card {
+  .change-card {
     flex-direction: column;
     max-width: 400px;
   }
@@ -365,7 +348,6 @@ async function login() {
     flex: 0 0 auto;
     padding: 32px 24px;
   }
-  .brand-features { display: none; }
   .brand-desc { display: none; }
   .form-panel {
     padding: 28px 24px;

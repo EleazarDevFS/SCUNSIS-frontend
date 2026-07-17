@@ -38,6 +38,10 @@ export default {
             bulkSenders: [],
             bulkResult: null,
             bulkSubmitting: false,
+            users: [],
+            showUserForm: false,
+            editingUser: null,
+            userForm: { username: '', password: '', role: 'CAPTURISTA' },
             loading: false
         }
     },
@@ -175,6 +179,31 @@ export default {
             } catch (err) { if (err.message !== 'Sesion expirada') this.toast.error('Error al procesar la carga masiva'); }
             finally { this.bulkSubmitting = false; }
         },
+        async fetchUsers() {
+            this.loading = true;
+            try { const res = await api('/api/v1/users'); if (!res.ok) throw new Error(); this.users = await res.json(); }
+            catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
+        },
+        openNewUser() { this.editingUser = null; this.userForm = { username: '', password: '', role: 'CAPTURISTA' }; this.showUserForm = true; },
+        openEditUser(u) { this.editingUser = u; this.userForm = { username: u.username, password: '', role: u.role }; this.showUserForm = true; },
+        cancelUserForm() { this.showUserForm = false; this.editingUser = null; this.userForm = { username: '', password: '', role: 'CAPTURISTA' }; },
+        async saveUser() {
+            if (!this.userForm.username.trim()) { this.toast.error('El nombre de usuario es requerido'); return; }
+            if (!this.editingUser && !this.userForm.password.trim()) { this.toast.error('La contraseña es requerida'); return; }
+            try {
+                const isEdit = !!this.editingUser;
+                const url = isEdit ? `/api/v1/users/${this.editingUser.id}` : '/api/v1/users';
+                const method = isEdit ? 'PUT' : 'POST';
+                const res = await api(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.userForm) });
+                if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Error al guardar'); }
+                this.cancelUserForm(); await this.fetchUsers(); this.toast.success(isEdit ? 'Usuario actualizado' : 'Usuario creado');
+            } catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); }
+        },
+        async deleteUser(id) {
+            if (!confirm('¿Eliminar este usuario?')) return;
+            try { const res = await api(`/api/v1/users/${id}`, { method: 'DELETE' }); if (!res.ok) throw new Error(); await this.fetchUsers(); this.toast.success('Usuario eliminado'); }
+            catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); }
+        },
         switchTab(tab) {
             this.activeTab = tab;
             if (tab === 'senders') this.fetchSenders();
@@ -182,6 +211,7 @@ export default {
             else if (tab === 'activities') this.fetchActivities();
             else if (tab === 'receivers') this.fetchReceivers();
             else if (tab === 'bulk') this.openBulkUpload();
+            else if (tab === 'users') this.fetchUsers();
         }
     },
     mounted() { this.fetchSenders(); }
@@ -215,6 +245,10 @@ export default {
             <button :class="['tab', { active: activeTab === 'bulk' }]" @click="switchTab('bulk')">
                 <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor"><path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
                 Carga masiva
+            </button>
+            <button :class="['tab', { active: activeTab === 'users' }]" @click="switchTab('users')">
+                <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor"><path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-240v-32q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v32q0 33-23.5 56.5T720-160H240q-33 0-56.5-23.5T160-240Z"/></svg>
+                Usuarios
             </button>
         </div>
         <div class="tab-content">
@@ -344,8 +378,32 @@ export default {
                 </table>
                 <div v-else class="empty">{{ receiverSearch ? 'No se encontraron receptores' : 'No hay receptores registrados' }}</div>
             </div>
-            <!-- Carga masiva -->
-            <div v-if="activeTab === 'bulk'">
+        <!-- Usuarios -->
+        <div v-if="activeTab === 'users'">
+            <div class="section-header"><h3>Usuarios del sistema</h3><button class="btn-primary" @click="openNewUser">+ Nuevo usuario</button></div>
+            <div v-if="showUserForm" class="form-card">
+                <h4>{{ editingUser ? 'Editar usuario' : 'Nuevo usuario' }}</h4>
+                <div class="form-row"><label>Usuario:</label><input v-model="userForm.username" placeholder="Nombre de usuario" class="form-input" /></div>
+                <div class="form-row"><label>Contraseña {{ editingUser ? '(dejar en blanco para mantener)' : '' }}:</label><input v-model="userForm.password" type="password" :placeholder="editingUser ? 'Nueva contraseña (opcional)' : 'Contraseña'" class="form-input" /></div>
+                <div class="form-row"><label>Rol:</label><select v-model="userForm.role" class="form-input"><option value="ADMIN">Administrador</option><option value="CAPTURISTA">Capturista</option></select></div>
+                <div class="form-actions"><button @click="saveUser" class="btn-primary">Guardar</button><button @click="cancelUserForm" class="btn-secondary">Cancelar</button></div>
+            </div>
+            <div v-if="loading" class="loading"><div class="spinner"></div></div>
+            <table v-else-if="users.length" class="data-table">
+                <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Acciones</th></tr></thead>
+                <tbody>
+                    <tr v-for="u in users" :key="u.id">
+                        <td><span class="id-badge">{{ u.id }}</span></td>
+                        <td class="cell-primary">{{ u.username }}</td>
+                        <td><span class="type-badge" :class="'role-' + u.role.toLowerCase()">{{ u.role === 'ADMIN' ? 'Administrador' : 'Capturista' }}</span></td>
+                        <td class="actions-cell"><button @click="openEditUser(u)" class="btn-edit">Editar</button><button @click="deleteUser(u.id)" class="btn-delete-sm">Eliminar</button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div v-else class="empty">No hay usuarios registrados</div>
+        </div>
+        <!-- Carga masiva -->
+        <div v-if="activeTab === 'bulk'">
                 <div class="section-header"><h3>Carga masiva de constancias</h3></div>
                 <div class="form-card">
                     <div class="form-row"><label>Archivo Excel:</label><input type="file" accept=".xlsx" @change="onBulkFileChange" class="form-input" /></div>
@@ -454,6 +512,8 @@ export default {
 .type-badge { padding: 2px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
 .type-fisico { background: #EDE9FE; color: #6D28D9; }
 .type-virtual { background: #DBEAFE; color: #1D4ED8; }
+.role-admin { background: #FEE2E2; color: #B91C1C; }
+.role-capturista { background: #DBEAFE; color: #1D4ED8; }
 
 .actions-cell { display: flex; gap: 6px; }
 .btn-edit { background: var(--background); border: 1px solid var(--border); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; transition: all 0.2s ease; color: var(--text-secondary); font-weight: 500; }

@@ -1,8 +1,7 @@
 <script>
 import ActiveUser from '../components/ActiveUser.vue';
 import AsideComponent from '../components/AsideComponent.vue';
-
-const API = 'http://localhost:8082/api/v1';
+import { api } from '../utils/api.js';
 
 export default {
     name: 'ConfiguracionView',
@@ -11,6 +10,7 @@ export default {
         return {
             activeTab: 'senders',
             senders: [],
+            senderSearch: '',
             showSenderForm: false,
             editingSender: null,
             senderForm: { name: '', campus: '' },
@@ -23,6 +23,7 @@ export default {
             editingActivity: null,
             activityForm: { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' },
             receivers: [],
+            receiverSearch: '',
             showReceiverForm: false,
             editingReceiver: null,
             receiverForm: { nombre: '', primer_apellido: '', segundo_apellido: '', telefono: '', email: '', grado_academico: '' },
@@ -39,15 +40,34 @@ export default {
             loading: false
         }
     },
+    computed: {
+        filteredSenders() {
+            if (!this.senderSearch) return this.senders;
+            const q = this.senderSearch.toLowerCase();
+            return this.senders.filter(s =>
+                s.name?.toLowerCase().includes(q) ||
+                s.campus?.toLowerCase().includes(q)
+            );
+        },
+        filteredReceivers() {
+            if (!this.receiverSearch) return this.receivers;
+            const q = this.receiverSearch.toLowerCase();
+            return this.receivers.filter(r =>
+                r.name?.toLowerCase().includes(q) ||
+                r.lastName?.toLowerCase().includes(q) ||
+                r.email?.toLowerCase().includes(q)
+            );
+        }
+    },
     methods: {
         async fetchSenders() {
             this.loading = true;
             try {
-                const res = await fetch(`${API}/sender`);
+                const res = await api('/api/v1/sender');
                 if (!res.ok) throw new Error('Error al cargar emisores');
                 this.senders = await res.json();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             } finally {
                 this.loading = false;
             }
@@ -73,7 +93,7 @@ export default {
                 return;
             }
             try {
-                const res = await fetch(`${API}/sender`, {
+                const res = await api('/api/v1/sender', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.senderForm)
@@ -85,27 +105,27 @@ export default {
                 this.cancelSenderForm();
                 await this.fetchSenders();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async deleteSender(id) {
             if (!confirm('¿Eliminar este emisor?')) return;
             try {
-                const res = await fetch(`${API}/sender/${id}`, { method: 'DELETE' });
+                const res = await api(`/api/v1/sender/${id}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Error al eliminar');
                 await this.fetchSenders();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async fetchEvents() {
             this.loading = true;
             try {
-                const res = await fetch(`${API}/event`);
+                const res = await api('/api/v1/event');
                 if (!res.ok) throw new Error('Error al cargar eventos');
                 this.events = await res.json();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             } finally {
                 this.loading = false;
             }
@@ -139,10 +159,10 @@ export default {
             }
             try {
                 const url = this.editingEvent
-                    ? `${API}/event/${this.editingEvent.eventId}`
-                    : `${API}/event`;
+                    ? `/api/v1/event/${this.editingEvent.eventId}`
+                    : '/api/v1/event';
                 const method = this.editingEvent ? 'PUT' : 'POST';
-                const res = await fetch(url, {
+                const res = await api(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.eventForm)
@@ -151,31 +171,31 @@ export default {
                 this.cancelEventForm();
                 await this.fetchEvents();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async deleteEvent(id) {
             if (!confirm('¿Eliminar este evento?')) return;
             try {
-                const res = await fetch(`${API}/event/${id}`, { method: 'DELETE' });
+                const res = await api(`/api/v1/event/${id}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Error al eliminar');
                 await this.fetchEvents();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async fetchActivities() {
             this.loading = true;
             try {
                 const [actRes, evtRes] = await Promise.all([
-                    fetch(`${API}/activity`),
-                    fetch(`${API}/event`)
+                    api('/api/v1/activity'),
+                    api('/api/v1/event')
                 ]);
                 if (!actRes.ok) throw new Error('Error al cargar actividades');
                 this.activities = await actRes.json();
                 this.events = await evtRes.json();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             } finally {
                 this.loading = false;
             }
@@ -216,10 +236,10 @@ export default {
             try {
                 const body = { ...this.activityForm, eventId: Number(this.activityForm.eventId) };
                 const url = this.editingActivity
-                    ? `${API}/activity/${this.editingActivity.activityId}`
-                    : `${API}/activity`;
+                    ? `/api/v1/activity/${this.editingActivity.activityId}`
+                    : '/api/v1/activity';
                 const method = this.editingActivity ? 'PUT' : 'POST';
-                const res = await fetch(url, {
+                const res = await api(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
@@ -228,27 +248,27 @@ export default {
                 this.cancelActivityForm();
                 await this.fetchActivities();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async deleteActivity(id) {
             if (!confirm('¿Eliminar esta actividad?')) return;
             try {
-                const res = await fetch(`${API}/activity/${id}`, { method: 'DELETE' });
+                const res = await api(`/api/v1/activity/${id}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Error al eliminar');
                 await this.fetchActivities();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async fetchReceivers() {
             this.loading = true;
             try {
-                const res = await fetch(`${API}/receiver`);
+                const res = await api('/api/v1/receiver');
                 if (!res.ok) throw new Error('Error al cargar receptores');
                 this.receivers = await res.json();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             } finally {
                 this.loading = false;
             }
@@ -282,10 +302,10 @@ export default {
             }
             try {
                 const url = this.editingReceiver
-                    ? `${API}/receiver/${this.editingReceiver.receiverId}`
-                    : `${API}/receiver`;
+                    ? `/api/v1/receiver/${this.editingReceiver.receiverId}`
+                    : '/api/v1/receiver';
                 const method = this.editingReceiver ? 'PUT' : 'POST';
-                const res = await fetch(url, {
+                const res = await api(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.receiverForm)
@@ -294,17 +314,17 @@ export default {
                 this.cancelReceiverForm();
                 await this.fetchReceivers();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async deleteReceiver(id) {
             if (!confirm('¿Eliminar este receptor?')) return;
             try {
-                const res = await fetch(`${API}/receiver/${id}`, { method: 'DELETE' });
+                const res = await api(`/api/v1/receiver/${id}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Error al eliminar');
                 await this.fetchReceivers();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async openBulkUpload() {
@@ -316,15 +336,15 @@ export default {
             this.bulkRole = '';
             try {
                 const [evtRes, actRes, sndRes] = await Promise.all([
-                    fetch(`${API}/event`),
-                    fetch(`${API}/activity`),
-                    fetch(`${API}/sender`)
+                    api('/api/v1/event'),
+                    api('/api/v1/activity'),
+                    api('/api/v1/sender')
                 ]);
                 this.bulkEvents = await evtRes.json();
                 this.bulkActivities = await actRes.json();
                 this.bulkSenders = await sndRes.json();
             } catch (err) {
-                alert('Error al cargar datos para el formulario');
+                if (err.message !== 'Sesion expirada') alert('Error al cargar datos para el formulario');
             }
         },
         onBulkFileChange(event) {
@@ -348,13 +368,13 @@ export default {
                 formData.append('activityId', this.bulkActivityId);
                 formData.append('senderId', this.bulkSenderId);
                 if (this.bulkRole) formData.append('role', this.bulkRole);
-                const res = await fetch(`${API}/proof/upload`, {
+                const res = await api('/api/v1/proof/upload', {
                     method: 'POST',
                     body: formData
                 });
                 this.bulkResult = await res.json();
             } catch (err) {
-                alert('Error al procesar la carga masiva');
+                if (err.message !== 'Sesion expirada') alert('Error al procesar la carga masiva');
             } finally {
                 this.bulkSubmitting = false;
             }
@@ -377,10 +397,13 @@ export default {
                 <button :class="['tab', { active: activeTab === 'bulk' }]" @click="activeTab = 'bulk'; openBulkUpload()">Carga masiva</button>
             </div>
             <div class="tab-content">
-                <div v-if="activeTab === 'senders'">
+                    <div v-if="activeTab === 'senders'">
                     <div class="section-header">
                         <h3>Emisores (Instituciones)</h3>
                         <button class="btn-add" @click="openNewSender">+ Nuevo emisor</button>
+                    </div>
+                    <div class="search-bar">
+                        <input v-model="senderSearch" placeholder="Buscar emisor por nombre o campus..." class="filter-input" />
                     </div>
                     <div v-if="showSenderForm" class="form-card">
                         <h4>{{ editingSender ? 'Editar emisor' : 'Nuevo emisor' }}</h4>
@@ -398,7 +421,7 @@ export default {
                         </div>
                     </div>
                     <div v-if="loading" class="loading">Cargando...</div>
-                    <table v-else-if="senders.length" class="data-table">
+                    <table v-else-if="filteredSenders.length" class="data-table">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -408,7 +431,7 @@ export default {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="s in senders" :key="s.senderId">
+                            <tr v-for="s in filteredSenders" :key="s.senderId">
                                 <td>{{ s.senderId }}</td>
                                 <td>{{ s.name }}</td>
                                 <td>{{ s.campus || '—' }}</td>
@@ -419,7 +442,7 @@ export default {
                             </tr>
                         </tbody>
                     </table>
-                    <div v-else class="empty">No hay emisores registrados</div>
+                    <div v-else class="empty">{{ senderSearch ? 'No se encontraron emisores' : 'No hay emisores registrados' }}</div>
                 </div>
                 <div v-if="activeTab === 'events'">
                     <div class="section-header">
@@ -562,6 +585,9 @@ export default {
                         <h3>Receptores</h3>
                         <button class="btn-add" @click="openNewReceiver">+ Nuevo receptor</button>
                     </div>
+                    <div class="search-bar">
+                        <input v-model="receiverSearch" placeholder="Buscar receptor por nombre, apellido o email..." class="filter-input" />
+                    </div>
                     <div v-if="showReceiverForm" class="form-card">
                         <h4>{{ editingReceiver ? 'Editar receptor' : 'Nuevo receptor' }}</h4>
                         <div class="form-row">
@@ -594,7 +620,7 @@ export default {
                         </div>
                     </div>
                     <div v-if="loading" class="loading">Cargando...</div>
-                    <table v-else-if="receivers.length" class="data-table">
+                    <table v-else-if="filteredReceivers.length" class="data-table">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -607,7 +633,7 @@ export default {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="r in receivers" :key="r.receiverId">
+                            <tr v-for="r in filteredReceivers" :key="r.receiverId">
                                 <td>{{ r.receiverId }}</td>
                                 <td>{{ r.name }}</td>
                                 <td>{{ r.lastName }} {{ r.twoLastName || '' }}</td>
@@ -621,7 +647,7 @@ export default {
                             </tr>
                         </tbody>
                     </table>
-                    <div v-else class="empty">No hay receptores registrados</div>
+                    <div v-else class="empty">{{ receiverSearch ? 'No se encontraron receptores' : 'No hay receptores registrados' }}</div>
                 </div>
                 <div v-if="activeTab === 'bulk'">
                     <div class="section-header">
@@ -746,6 +772,17 @@ main {
 .section-header h3 {
     margin: 0;
     color: #333;
+}
+.search-bar {
+    margin-bottom: 12px;
+}
+.search-bar .filter-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    box-sizing: border-box;
 }
 .btn-add {
     background: #7C0A02;

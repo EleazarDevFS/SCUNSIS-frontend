@@ -1,4 +1,6 @@
 <script>
+import { useAuth } from '../store/auth.js';
+
 export default {
   data() {
     return {
@@ -11,6 +13,8 @@ export default {
       this.$emit('change-view', view);
     },
     logOut() {
+      const { logout } = useAuth();
+      logout();
       this.activeView = null;
       this.$router.push('/');
     }

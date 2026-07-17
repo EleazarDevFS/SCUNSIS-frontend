@@ -83,6 +83,7 @@
 
 <script setup>
 import { ref, reactive, watch, nextTick } from 'vue'
+import { api } from '../utils/api.js'
 
 // Recibir el valor como prop
 const props = defineProps({
@@ -228,7 +229,7 @@ const onExcelChange = async (event) => {
   const formData = new FormData();
   formData.append('file', file);
   try {
-    const response = await fetch('http://localhost:8082/api/file', {
+    const response = await api('/api/file', {
       method: 'POST',
       body: formData
     });
@@ -238,8 +239,7 @@ const onExcelChange = async (event) => {
       const rows = result.data.slice(1);
       if (rows.length > 0) {
         const persona = rows[0];
-        // Enviar persona al backend para registrar y obtener folio
-        const folioRes = await fetch('http://localhost:8082/api/v1/receiver', {
+        const folioRes = await api('/api/v1/receiver', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

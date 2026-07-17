@@ -1,8 +1,7 @@
 <script>
 import ActiveUser from '../components/ActiveUser.vue';
 import AsideComponent from '../components/AsideComponent.vue';
-
-const API = 'http://localhost:8082/api/v1';
+import { api } from '../utils/api.js';
 
 export default {
     name: 'HistorialView',
@@ -15,7 +14,8 @@ export default {
             searchQuery: '',
             filterDateFrom: '',
             filterDateTo: '',
-            expandedFolio: null
+            expandedFolio: null,
+            userRole: localStorage.getItem('role')
         }
     },
     computed: {
@@ -26,18 +26,21 @@ export default {
                 participantes: this.filteredProofs.filter(p => p.role === 'PARTICIPANTE').length,
                 organizadores: this.filteredProofs.filter(p => p.role === 'ORGANIZADOR').length
             }
+        },
+        isAdmin() {
+            return this.userRole === 'ADMIN';
         }
     },
     methods: {
         async fetchProofs() {
             this.loading = true;
             try {
-                const res = await fetch(`${API}/proof`);
+                const res = await api('/api/v1/proof');
                 if (!res.ok) throw new Error('Error al cargar historial');
                 this.proofs = await res.json();
                 this.applyFilters();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             } finally {
                 this.loading = false;
             }
@@ -64,7 +67,7 @@ export default {
         },
         async downloadPdf(folio) {
             try {
-                const res = await fetch(`${API}/proof/${folio}/pdf`);
+                const res = await api(`/api/v1/proof/${folio}/pdf`);
                 if (!res.ok) throw new Error('Error al descargar PDF');
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
@@ -76,18 +79,18 @@ export default {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         async deleteProof(folio) {
             if (!confirm(`¿Eliminar constancia ${folio}?`)) return;
             try {
-                const res = await fetch(`${API}/proof/${folio}`, { method: 'DELETE' });
+                const res = await api(`/api/v1/proof/${folio}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Error al eliminar');
                 this.proofs = this.proofs.filter(p => p.folio !== folio);
                 this.applyFilters();
             } catch (err) {
-                alert(err.message);
+                if (err.message !== 'Sesion expirada') alert(err.message);
             }
         },
         toggleExpand(folio) {
@@ -148,7 +151,7 @@ export default {
                         </div>
                         <div class="detail-actions">
                             <button @click="downloadPdf(p.folio)" class="btn-download">Descargar PDF</button>
-                            <button @click="deleteProof(p.folio)" class="btn-delete">Eliminar</button>
+                            <button v-if="isAdmin" @click="deleteProof(p.folio)" class="btn-delete">Eliminar</button>
                         </div>
                     </div>
                 </li>

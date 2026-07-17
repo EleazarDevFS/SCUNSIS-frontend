@@ -1,10 +1,16 @@
 <script>
 import Logo from '../components/Logo.vue';
 import HeaderNav from '../components/NavigationGC.vue';
+
 export default {
     components: {
         Logo,
         HeaderNav
+    },
+    computed: {
+        username() {
+            return localStorage.getItem('username') || 'Usuario';
+        }
     },
     methods: {
         handleLogoClick(view) {
@@ -20,7 +26,7 @@ export default {
         </div>
         <HeaderNav class="navigation"/>
         <div class="iconUserActive">
-            <span id="text-user">Nombre de usuario</span>
+            <span id="text-user">{{ username }}</span>
             <svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px"
                 fill="currentColor">
                 <path
@@ -34,25 +40,21 @@ export default {
     position: relative;
     top: 14px;
 }
-
 .iconUserActive {
     display: flex;
     color: #7C0A02;
     width: max-content;
     gap: 10px;
 }
-
 .iconUserActive:hover {
     color: #000;
 }
-
 .logo-container {
     margin-left: 20px;
     width: max-content;
     position: relative;
     top: 60px;
 }
-
 .activeUser {
     width: 100%;
     display: flex;
@@ -62,7 +64,6 @@ export default {
     padding: 10px 20px;
     gap: 0.6rem;
 }
-
 .svg-icon {
     position: relative;
 }

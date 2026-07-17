@@ -2,6 +2,7 @@
 import { ref, defineProps, watch } from 'vue'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import EditPaperMaster from './EditPaperMaster.vue'
+import { api } from '../utils/api.js'
 const props = defineProps({
     titulo: String,
     mensajePlaceholder: String
@@ -101,7 +102,7 @@ async function onExcelChange(event) {
   const formData = new FormData();
   formData.append('file', file);
   try {
-    const response = await fetch('http://localhost:8082/api/upload-excel', {
+    const response = await api('/api/upload-excel', {
       method: 'POST',
       body: formData
     });

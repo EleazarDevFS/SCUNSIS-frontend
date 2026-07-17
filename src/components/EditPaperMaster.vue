@@ -249,7 +249,7 @@ const onDrag = (e) => {
   if (draggingIndex === null || !textBoxes[draggingIndex]) return
   const cr = canvasContainer.value.getBoundingClientRect(), b = textBoxes[draggingIndex]
   let nx = e.clientX - cr.left - offset.x, ny = e.clientY - cr.top - offset.y
-  b.x = Math.max(0, Math.min(nx, 760)); b.y = Math.max(0, Math.min(ny, 500))
+  b.x = Math.max(0, Math.min(nx, 780)); b.y = Math.max(0, Math.min(ny, 570))
   drawCanvas()
 }
 

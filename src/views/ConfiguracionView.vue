@@ -22,6 +22,10 @@ export default {
             showActivityForm: false,
             editingActivity: null,
             activityForm: { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' },
+            receivers: [],
+            showReceiverForm: false,
+            editingReceiver: null,
+            receiverForm: { nombre: '', primer_apellido: '', segundo_apellido: '', telefono: '', email: '', grado_academico: '' },
             loading: false
         }
     },
@@ -226,6 +230,72 @@ export default {
             } catch (err) {
                 alert(err.message);
             }
+        },
+        async fetchReceivers() {
+            this.loading = true;
+            try {
+                const res = await fetch(`${API}/receiver`);
+                if (!res.ok) throw new Error('Error al cargar receptores');
+                this.receivers = await res.json();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+        openNewReceiver() {
+            this.editingReceiver = null;
+            this.receiverForm = { nombre: '', primer_apellido: '', segundo_apellido: '', telefono: '', email: '', grado_academico: '' };
+            this.showReceiverForm = true;
+        },
+        openEditReceiver(r) {
+            this.editingReceiver = r;
+            this.receiverForm = {
+                nombre: r.name,
+                primer_apellido: r.lastName,
+                segundo_apellido: r.twoLastName || '',
+                telefono: r.phone || '',
+                email: r.email || '',
+                grado_academico: r.academicGrade || ''
+            };
+            this.showReceiverForm = true;
+        },
+        cancelReceiverForm() {
+            this.showReceiverForm = false;
+            this.editingReceiver = null;
+            this.receiverForm = { nombre: '', primer_apellido: '', segundo_apellido: '', telefono: '', email: '', grado_academico: '' };
+        },
+        async saveReceiver() {
+            if (!this.receiverForm.nombre.trim() || !this.receiverForm.primer_apellido.trim()) {
+                alert('Nombre y primer apellido son requeridos');
+                return;
+            }
+            try {
+                const url = this.editingReceiver
+                    ? `${API}/receiver/${this.editingReceiver.receiverId}`
+                    : `${API}/receiver`;
+                const method = this.editingReceiver ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.receiverForm)
+                });
+                if (!res.ok) throw new Error('Error al guardar receptor');
+                this.cancelReceiverForm();
+                await this.fetchReceivers();
+            } catch (err) {
+                alert(err.message);
+            }
+        },
+        async deleteReceiver(id) {
+            if (!confirm('¿Eliminar este receptor?')) return;
+            try {
+                const res = await fetch(`${API}/receiver/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Error al eliminar');
+                await this.fetchReceivers();
+            } catch (err) {
+                alert(err.message);
+            }
         }
     },
     mounted() {
@@ -239,9 +309,9 @@ export default {
         <main>
             <div class="tabs">
                 <button :class="['tab', { active: activeTab === 'senders' }]" @click="activeTab = 'senders'; fetchSenders()">Emisores</button>
-                <button :class="['tab', { active: activeTab === 'events' }]" @click="activeTab = 'events'">Eventos</button>
+                <button :class="['tab', { active: activeTab === 'events' }]" @click="activeTab = 'events'; fetchEvents()">Eventos</button>
                 <button :class="['tab', { active: activeTab === 'activities' }]" @click="activeTab = 'activities'; fetchActivities()">Actividades</button>
-                <button :class="['tab', { active: activeTab === 'receivers' }]" @click="activeTab = 'receivers'">Receptores</button>
+                <button :class="['tab', { active: activeTab === 'receivers' }]" @click="activeTab = 'receivers'; fetchReceivers()">Receptores</button>
             </div>
             <div class="tab-content">
                 <div v-if="activeTab === 'senders'">
@@ -427,8 +497,68 @@ export default {
                 <div v-if="activeTab === 'receivers'">
                     <div class="section-header">
                         <h3>Receptores</h3>
+                        <button class="btn-add" @click="openNewReceiver">+ Nuevo receptor</button>
                     </div>
-                    <div class="placeholder-content">Sección en construcción</div>
+                    <div v-if="showReceiverForm" class="form-card">
+                        <h4>{{ editingReceiver ? 'Editar receptor' : 'Nuevo receptor' }}</h4>
+                        <div class="form-row">
+                            <label>Nombre:</label>
+                            <input v-model="receiverForm.nombre" placeholder="Nombre" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Primer apellido:</label>
+                            <input v-model="receiverForm.primer_apellido" placeholder="Primer apellido" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Segundo apellido:</label>
+                            <input v-model="receiverForm.segundo_apellido" placeholder="Segundo apellido" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Teléfono:</label>
+                            <input v-model="receiverForm.telefono" placeholder="Teléfono" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Email:</label>
+                            <input v-model="receiverForm.email" placeholder="Email" type="email" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Grado académico:</label>
+                            <input v-model="receiverForm.grado_academico" placeholder="Grado académico" class="form-input" />
+                        </div>
+                        <div class="form-actions">
+                            <button @click="saveReceiver" class="btn-save">Guardar</button>
+                            <button @click="cancelReceiverForm" class="btn-cancel">Cancelar</button>
+                        </div>
+                    </div>
+                    <div v-if="loading" class="loading">Cargando...</div>
+                    <table v-else-if="receivers.length" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Apellidos</th>
+                                <th>Email</th>
+                                <th>Teléfono</th>
+                                <th>Grado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="r in receivers" :key="r.receiverId">
+                                <td>{{ r.receiverId }}</td>
+                                <td>{{ r.name }}</td>
+                                <td>{{ r.lastName }} {{ r.twoLastName || '' }}</td>
+                                <td>{{ r.email || '—' }}</td>
+                                <td>{{ r.phone || '—' }}</td>
+                                <td>{{ r.academicGrade || '—' }}</td>
+                                <td class="actions-cell">
+                                    <button @click="openEditReceiver(r)" class="btn-edit">Editar</button>
+                                    <button @click="deleteReceiver(r.receiverId)" class="btn-delete">Eliminar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-else class="empty">No hay receptores registrados</div>
                 </div>
             </div>
         </main>

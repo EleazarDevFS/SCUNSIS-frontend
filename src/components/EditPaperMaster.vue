@@ -222,7 +222,6 @@ function renderOn(ctx, scale) {
       ctx.textAlign = 'left'
       drawBoxText(ctx, box, box.x + 10, box.y + 7, mw)
     }
-    ctx.restore()
   })
   ctx.restore()
 }

@@ -8,16 +8,24 @@ export default {
     AsideComponent,
     ActiveUser
   },
-  mounted() {
-    if (window.location.pathname !== '/') {
-      document.body.style.background = '#EBE7E7';
+  computed: {
+    isLoginPage() {
+      return this.$route.path === '/';
     }
+  },
+  watch: {
+    isLoginPage(val) {
+      document.body.classList.toggle('login-page', val);
+    }
+  },
+  mounted() {
+    document.body.classList.toggle('login-page', this.isLoginPage);
   }
 }
 </script>
 <template>
   <div class="container-app">
-    <template v-if="$route.path === '/'">
+    <template v-if="isLoginPage">
       <div class="login-center">
         <router-view />
       </div>
@@ -34,44 +42,39 @@ export default {
   </div>
 </template>
 <style>
-* {
-  font-family: 'Poppins', sans-serif;
-}
-.login-center {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .container-app {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-wrap: wrap;
 }
+.login-center {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
 .header {
   width: 100%;
+  flex: 0 0 auto;
 }
 .layout-body {
   display: flex;
-  flex-direction: row;
   flex: 1;
-  height: calc(100vh - 80px);
   min-height: 0;
 }
 .main-content {
-  flex: 1 1 0%;
+  flex: 1;
   min-width: 0;
-  height: 100vh;
+  height: calc(100vh - 64px);
   overflow-y: auto;
+  background: var(--background);
 }
 .aside {
-  height: 100vh;
-  width: 300px;
-  min-width: 250px;
-  max-width: 200px;
-  flex: 0 0 250px;
-  box-sizing: border-box;
+  width: 260px;
+  min-width: 260px;
+  flex: 0 0 260px;
 }
 </style>

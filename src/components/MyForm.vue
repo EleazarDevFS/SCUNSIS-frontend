@@ -1,35 +1,35 @@
 <script setup>
 import { ref, defineProps, watch } from 'vue'
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { PDFDocument } from 'pdf-lib'
 import EditPaperMaster from './EditPaperMaster.vue'
 import { api } from '../utils/api.js'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
+
 const props = defineProps({
     titulo: String,
     mensajePlaceholder: String
 })
 
-// Sincronizar fecha seleccionada con el editor
 const editPaperMasterRef = ref(null)
 const pdfUrl = ref(null)
 const mensaje = ref('')
 const receptor = ref('')
-const fechaSeleccionada = ref(''); // Nueva variable reactiva para la fecha
-const cerrarFormulario = () => {
-    // Cerrar formulario 
-}
+const fechaSeleccionada = ref('')
+const cerrarFormulario = () => {}
 
 const submitForm = async () => {
     if (!excelData.value.length) {
-        alert('Primero carga un archivo Excel válido.');
+        toast.error('Primero carga un archivo Excel válido.')
         return;
     }
     const canvasImage = editPaperMasterRef.value?.getCanvasImage?.();
     if (!canvasImage) {
-        alert('Primero edita y carga la hoja maestra en el editor.');
+        toast.error('Primero edita y carga la hoja maestra en el editor.')
         return;
     }
     for (const persona of excelData.value) {
-        // Soporta array de arrays (sin encabezados) y array de objetos (con encabezados)
         let nombre, primer_apellido, segundo_apellido, grado_academico, grado;
         if (Array.isArray(persona)) {
             nombre = persona[0] || '';
@@ -59,12 +59,7 @@ const submitForm = async () => {
         const pdfDoc = await PDFDocument.create();
         const page = pdfDoc.addPage([width, height]);
         const pngImage = await pdfDoc.embedPng(canvasImg);
-        page.drawImage(pngImage, {
-            x: 0,
-            y: 0,
-            width,
-            height
-        });
+        page.drawImage(pngImage, { x: 0, y: 0, width, height });
         const modifiedPdfBytes = await pdfDoc.save();
         const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
@@ -75,9 +70,9 @@ const submitForm = async () => {
         link.click();
         document.body.removeChild(link);
     }
+    toast.success('Constancias generadas exitosamente');
 }
 
-// Edit Master Page
 const pdfSelect = ref(false)
 const formData = ref({ name: '' })
 function handleFileChange(event) {
@@ -88,14 +83,12 @@ function handleFileChange(event) {
     } else {
         pdfSelect.value = false
         pdfUrl.value = null
-        alert('Por favor seleccione un archivo PDF válido')
+        toast.error('Por favor seleccione un archivo PDF válido')
     }
 }
 
-// Guardar los datos del Excel
 const excelData = ref([])
 
-// Manejar la carga del Excel y obtener los datos del backend
 async function onExcelChange(event) {
   const file = event.target.files ? event.target.files[0] : event;
   if (!file) return;
@@ -107,16 +100,16 @@ async function onExcelChange(event) {
       body: formData
     });
     const result = await response.json();
-    // Soporta ambos formatos: folios (array de objetos) o data (array de arrays)
     if (result.folios && Array.isArray(result.folios) && result.folios.length > 0) {
       excelData.value = result.folios;
     } else if (result.data && Array.isArray(result.data) && result.data.length > 1) {
-      excelData.value = result.data.slice(1); // omite encabezado si existe
+      excelData.value = result.data.slice(1);
     } else {
       excelData.value = [];
     }
+    toast.success('Excel cargado correctamente');
   } catch (err) {
-    alert('Error procesando el archivo Excel');
+    toast.error('Error procesando el archivo Excel');
   }
 };
 
@@ -128,168 +121,113 @@ watch(fechaSeleccionada, (nuevaFecha) => {
 </script>
 
 <template>
-    <form class="formulario" @submit.prevent="submitForm">
-        <div class="title-form">
+    <form class="my-form" @submit.prevent="submitForm">
+        <div class="form-header">
             <h3>{{ titulo }}</h3>
         </div>
-        <hr />
-        <div>
-            <label for="num-folio"></label>
+        <div class="form-group">
+            <label>Cargar Excel con los datos de las personas</label>
+            <v-file-input label="Archivo Excel" accept=".xlsx" multiple
+                :rules="[value => !!value || 'Porfavor cargue un archivo .xlsx o calc']"
+                class="file-input" @change="onExcelChange" variant="outlined" density="comfortable" />
         </div>
-        <div class="grupo-formulario">
-            <label for="excel-jornadas">Cargar excel con los datos de las personas</label>
-            <v-file-input label="Archivo Excel" accept=".xlsx" multiple 
-            :rules="[value => !!value || 'Porfavor cargue un archivo .xlsx o calc']"
-            class="campo-archivo"
-                id="excel-jornadas" @change="onExcelChange"></v-file-input>
+        <div class="form-group">
+            <label>Mensaje:</label>
+            <textarea class="form-textarea" :placeholder="mensajePlaceholder" v-model="mensaje"></textarea>
         </div>
-        <div class="grupo-formulario">
-            <label for="mensaje">Mensaje:</label>
-            <textarea id="mensaje" class="campo-textoarea" :placeholder="mensajePlaceholder"
-                v-model="mensaje"></textarea>
-        </div>
-
-        <div class="grupo-formulario editor">
-            <div>
-                <label for="hoja-jornadas" style="text-align: center;">Cargar hoja maestra</label>
-            </div>
-            <span>{{mensaje}}</span>
+        <div class="form-group">
+            <label>Cargar hoja maestra</label>
             <EditPaperMaster ref="editPaperMasterRef" :valorTexto="mensaje" />
-            <!-- implementation component editImage -->
         </div>
-
-        <div class="botones-formulario">
-            <button type="button" class="boton-cancelar" @click="cerrarFormulario">Cancelar</button>
-            <button type="submit" class="boton-enviar" @click="submitForm">Generar</button>
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" @click="cerrarFormulario">Cancelar</button>
+            <button type="submit" class="btn-primary" @click="submitForm">Generar</button>
         </div>
     </form>
 </template>
 
 <style scoped>
-.formulario {
+.my-form {
     display: flex;
     flex-direction: column;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    min-width: 0;
-    overflow-y: auto;
+    gap: 20px;
+}
+
+.form-header h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
     margin: 0;
-    padding: 0;
-    background-color: #fff;
-    border-radius: 0;
-    box-shadow: none;
-    box-sizing: border-box;
 }
 
-.title-form {
-    text-align: center;
-    margin-bottom: 10px;
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.title-form h3 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: #333;
-}
-
-hr {
-    margin: 10px 0 20px;
-    border: none;
-    border-top: 2px solid #ccc;
-}
-
-.grupo-formulario {
-    margin-bottom: 20px;
-}
-
-.grupo-formulario label {
-    display: block;
-    margin-bottom: 6px;
+.form-group label {
     font-weight: 600;
-    color: #222;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
-
-.campo-texto,
-.campo-archivo,
-.campo-textoarea {
+.file-input {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #aaa;
-    border-radius: 8px;
-    box-sizing: border-box;
-    font-size: 1rem;
 }
 
-.campo-textoarea {
-    resize: vertical;
+.form-textarea {
+    width: 100%;
     min-height: 100px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    resize: vertical;
+    outline: none;
+    background: var(--surface);
+    transition: border-color var(--transition);
 }
 
-.botones-formulario {
+.form-textarea:focus {
+    border-color: var(--primary);
+}
+
+.form-actions {
     display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
+    justify-content: flex-end;
+    gap: 12px;
 }
 
-.boton-enviar,
-.boton-cancelar {
-    flex: 1;
-    padding: 10px;
-    margin: 0 5px;
-    font-size: 1rem;
-    border-radius: 6px;
-    cursor: pointer;
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
     border: none;
-    transition: background-color 0.2s ease;
+    padding: 10px 28px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background var(--transition);
 }
 
-/* ---- */
-.vista-previa-pdf {
-    margin-top: 20px;
+.btn-primary:hover {
+    background: var(--primary-light);
 }
 
-/* ----- */
-.boton-enviar {
-    background-color: #222;
-    color: #fff;
+.btn-secondary {
+    background: var(--background);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 10px 28px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all var(--transition);
 }
 
-.boton-enviar:hover {
-    background-color: #444;
-}
-
-.boton-cancelar {
-    background-color: #bbb;
-    color: #fff;
-}
-
-.boton-cancelar:hover {
-    background-color: #999;
-}
-
-/* Editor style */
-.editor {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-/*  */
-.vista-previa-pdf {
-    position: relative;
-}
-
-.mensaje-en-pdf {
-    position: absolute;
-    top: 120px;
-    left: 50px;
-    width: 500px;
-    font-size: 16px;
-    color: rgba(0, 0, 0, 0.8);
-    background-color: transparent;
-    pointer-events: none;
+.btn-secondary:hover {
+    background: var(--border);
 }
 </style>

@@ -3,9 +3,11 @@ import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useRouter } from 'vue-router'
 import Logo from '../components/Logo.vue'
+import { useAuth } from '../store/auth.js'
 
 const toast = useToast()
 const router = useRouter()
+const { login: authLogin } = useAuth()
 
 const username = ref('')
 const password = ref('')
@@ -28,6 +30,7 @@ async function login() {
     })
     const data = await response.json()
     if (response.ok && data.success) {
+      authLogin(data.token, data.username, data.role)
       toast.success('¡Iniciaste sesión exitosamente!')
       setTimeout(() => {
         router.push('/inicio')

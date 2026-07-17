@@ -1,47 +1,37 @@
 <script>
+import { api } from '../utils/api.js';
+
 export default {
     mounted() {
         const btns = document.querySelectorAll('.btn-button');
 
-        // Guardar el color original de cada botón
         btns.forEach((boton) => {
             const estilos = getComputedStyle(boton);
             boton.dataset.originalColor = estilos.backgroundColor;
         });
 
         btns.forEach((boton) => {
-
             boton.addEventListener('click', () => {
-                // Restaurar el color original a todos los botones
                 btns.forEach((b) => {
                     b.style.backgroundColor = b.dataset.originalColor;
                 });
-
-                // Cambiar el color del botón clicado
-                boton.style.backgroundColor = '#f5f5f5' //'rgba(0,0,0,.3)';
-
+                boton.style.backgroundColor = '#f5f5f5';
             });
         });
 
-        const getFolio= async ()=> {
-            try{
-                const folioResponse = await fetch('http://localhost:8082/api/v1/folio'); 
-                if(!folioResponse.ok){
+        const getFolio = async () => {
+            try {
+                const folioResponse = await api('/api/v1/folio');
+                if (!folioResponse.ok) {
                     throw new Error(`Http error! status: ${folioResponse.status}`);
                 }
-
                 const data = await folioResponse.json();
-                
-
-            }catch(error){
-                // Se cambiaran los alerts por un toast
-                alert('Error de respuesta al servidor ', error);
+            } catch (error) {
+                if (error.message !== 'Sesion expirada') alert('Error de respuesta al servidor ' + error);
             }
         }
     }
 }
-
-
 </script>
 <template>
     <div class="select-event">

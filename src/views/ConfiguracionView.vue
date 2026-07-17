@@ -14,6 +14,10 @@ export default {
             showSenderForm: false,
             editingSender: null,
             senderForm: { name: '', campus: '' },
+            events: [],
+            showEventForm: false,
+            editingEvent: null,
+            eventForm: { eventName: '', eventType: '', eventPlace: '', eventDescription: '', startDate: '', endDate: '' },
             loading: false
         }
     },
@@ -72,6 +76,72 @@ export default {
                 const res = await fetch(`${API}/sender/${id}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Error al eliminar');
                 await this.fetchSenders();
+            } catch (err) {
+                alert(err.message);
+            }
+        },
+        async fetchEvents() {
+            this.loading = true;
+            try {
+                const res = await fetch(`${API}/event`);
+                if (!res.ok) throw new Error('Error al cargar eventos');
+                this.events = await res.json();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+        openNewEvent() {
+            this.editingEvent = null;
+            this.eventForm = { eventName: '', eventType: 'FISICO', eventPlace: '', eventDescription: '', startDate: '', endDate: '' };
+            this.showEventForm = true;
+        },
+        openEditEvent(event) {
+            this.editingEvent = event;
+            this.eventForm = {
+                eventName: event.eventName,
+                eventType: event.eventType || 'FISICO',
+                eventPlace: event.eventPlace || '',
+                eventDescription: event.eventDescription || '',
+                startDate: event.startDate || '',
+                endDate: event.endDate || ''
+            };
+            this.showEventForm = true;
+        },
+        cancelEventForm() {
+            this.showEventForm = false;
+            this.editingEvent = null;
+            this.eventForm = { eventName: '', eventType: 'FISICO', eventPlace: '', eventDescription: '', startDate: '', endDate: '' };
+        },
+        async saveEvent() {
+            if (!this.eventForm.eventName.trim()) {
+                alert('El nombre del evento es requerido');
+                return;
+            }
+            try {
+                const url = this.editingEvent
+                    ? `${API}/event/${this.editingEvent.eventId}`
+                    : `${API}/event`;
+                const method = this.editingEvent ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.eventForm)
+                });
+                if (!res.ok) throw new Error('Error al guardar evento');
+                this.cancelEventForm();
+                await this.fetchEvents();
+            } catch (err) {
+                alert(err.message);
+            }
+        },
+        async deleteEvent(id) {
+            if (!confirm('¿Eliminar este evento?')) return;
+            try {
+                const res = await fetch(`${API}/event/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Error al eliminar');
+                await this.fetchEvents();
             } catch (err) {
                 alert(err.message);
             }
@@ -140,8 +210,71 @@ export default {
                 <div v-if="activeTab === 'events'">
                     <div class="section-header">
                         <h3>Eventos</h3>
+                        <button class="btn-add" @click="openNewEvent">+ Nuevo evento</button>
                     </div>
-                    <div class="placeholder-content">Sección en construcción</div>
+                    <div v-if="showEventForm" class="form-card">
+                        <h4>{{ editingEvent ? 'Editar evento' : 'Nuevo evento' }}</h4>
+                        <div class="form-row">
+                            <label>Nombre del evento:</label>
+                            <input v-model="eventForm.eventName" placeholder="Nombre" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Tipo:</label>
+                            <select v-model="eventForm.eventType" class="form-input">
+                                <option value="FISICO">Presencial</option>
+                                <option value="VIRTUAL">Virtual</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Lugar:</label>
+                            <input v-model="eventForm.eventPlace" placeholder="Lugar" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Descripción:</label>
+                            <textarea v-model="eventForm.eventDescription" placeholder="Descripción" class="form-input" rows="3"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <label>Fecha inicio:</label>
+                            <input type="date" v-model="eventForm.startDate" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Fecha fin:</label>
+                            <input type="date" v-model="eventForm.endDate" class="form-input" />
+                        </div>
+                        <div class="form-actions">
+                            <button @click="saveEvent" class="btn-save">Guardar</button>
+                            <button @click="cancelEventForm" class="btn-cancel">Cancelar</button>
+                        </div>
+                    </div>
+                    <div v-if="loading" class="loading">Cargando...</div>
+                    <table v-else-if="events.length" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Tipo</th>
+                                <th>Lugar</th>
+                                <th>Fecha inicio</th>
+                                <th>Fecha fin</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="e in events" :key="e.eventId">
+                                <td>{{ e.eventId }}</td>
+                                <td>{{ e.eventName }}</td>
+                                <td>{{ e.eventType === 'FISICO' ? 'Presencial' : 'Virtual' }}</td>
+                                <td>{{ e.eventPlace || '—' }}</td>
+                                <td>{{ e.startDate || '—' }}</td>
+                                <td>{{ e.endDate || '—' }}</td>
+                                <td class="actions-cell">
+                                    <button @click="openEditEvent(e)" class="btn-edit">Editar</button>
+                                    <button @click="deleteEvent(e.eventId)" class="btn-delete">Eliminar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-else class="empty">No hay eventos registrados</div>
                 </div>
                 <div v-if="activeTab === 'activities'">
                     <div class="section-header">

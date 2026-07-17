@@ -16,15 +16,11 @@
           <div v-for="(box, index) in textBoxes" :key="index" class="text-box" :style="{
             top: box.y + 'px',
             left: box.x + 'px',
-            fontFamily: box.fontFamily,
-            color: box.color,
-            fontSize: box.fontSize + 'px',
-            background: box.background,
+            width: box.align === 'center' ? 'auto' : '360px',
             minWidth: '40px',
           }" :class="{ selected: selectedBox === index }" @mousedown="startDrag(index, $event)"
             @click.stop="selectBox(index)">
-            <span v-if="selectedBox === index" style="pointer-events:none; user-select:none;">{{ box.text }}</span>
-            <span v-else>{{ box.text }}</span>
+            <span class="text-box-inner">{{ box.text }}</span>
             <button v-if="box.id && box.id.startsWith('extra-text-')" class="delete-btn"
               @click.stop="removeTextBox(index)">✕</button>
           </div>
@@ -86,15 +82,15 @@ watch(() => props.valorTexto, (v) => { textBTxt.value = v }, { immediate: true }
 
 const defaultTextBoxes = [
   { id: 'emisor-text', text: 'UNIVERSIDAD DE LA SIERRA SUR', x: 400, y: 40, fontFamily: 'Arial', fontSize: 24, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'otorga-text', text: 'Otorga la presente constancia a', x: 350, y: 90 },
-  { id: 'receptor-text', text: 'Receptor', x: 350, y: 140 },
-  { id: 'body-text', text: textBTxt.value || 'Cuerpo', x: 350, y: 190 },
-  { id: 'att-text', text: 'Atentamente: Docendo discimus', x: 350, y: 240 },
-  { id: 'firma-one', text: 'Firma 1', x: 350, y: 450 },
-  { id: 'firma-two', text: 'Firma 2', x: 600, y: 450 },
-  { id: 'date-text', text: 'Fecha', x: 350, y: 370 },
-  { id: 'verification-text', text: 'Puede validar su constancia en ', x: 350, y: 550 },
-  { id: 'folio-text', text: 'Folio', x: 650, y: 550 },
+  { id: 'otorga-text', text: 'Otorga la presente constancia a:', x: 400, y: 100, fontFamily: 'Arial', fontSize: 16, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'receptor-text', text: '[Nombre del receptor]', x: 400, y: 150, fontFamily: 'Arial', fontSize: 22, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'body-text', text: textBTxt.value || '[Mensaje de la constancia]', x: 400, y: 210, fontFamily: 'Arial', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'date-text', text: 'Fecha', x: 400, y: 370, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'att-text', text: 'Atentamente: Docendo discimus', x: 400, y: 410, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'firma-one', text: 'Firma 1', x: 240, y: 480, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'firma-two', text: 'Firma 2', x: 560, y: 480, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'verification-text', text: 'Puede validar su constancia en:', x: 160, y: 555, fontFamily: 'Arial', fontSize: 10, color: '#666', background: 'rgba(255,255,255,0)', align: 'left' },
+  { id: 'folio-text', text: 'Folio:', x: 640, y: 555, fontFamily: 'Arial', fontSize: 10, color: '#666', background: 'rgba(255,255,255,0)', align: 'right' },
 ]
 
 watch(textBTxt, (v) => {
@@ -162,17 +158,17 @@ const onImageChange = (e) => {
   reader.readAsDataURL(file)
 }
 
-function getTextBoxWidth(_, index) {
-  const el = document.querySelectorAll('.text-box')[index]
-  return el ? el.offsetWidth : 400
+function boxMaxWidth(box) {
+  if (box.align === 'center') return 500
+  return 340
 }
 
-function drawMultilineText(ctx, text, x, y, maxWidth, lineH, font, color, opacity, maxY) {
-  ctx.save(); ctx.font = font; ctx.fillStyle = color; ctx.globalAlpha = opacity; ctx.textBaseline = 'top'
+function drawMultilineText(ctx, text, x, y, maxW, lineH, font, color, maxY) {
+  ctx.save(); ctx.font = font; ctx.fillStyle = color; ctx.textBaseline = 'top'
   const words = text.split(' '); let line = ''; let curY = y
   for (const w of words) {
-    const t = line + w + ' '; const m = ctx.measureText(t)
-    if (m.width > maxWidth && line) {
+    const t = line + w + ' '
+    if (ctx.measureText(t).width > maxW && line) {
       if (maxY && curY + lineH > maxY) break
       ctx.fillText(line, x, curY); line = w + ' '; curY += lineH
     } else line = t
@@ -181,22 +177,36 @@ function drawMultilineText(ctx, text, x, y, maxWidth, lineH, font, color, opacit
   ctx.restore()
 }
 
+function drawBoxText(ctx, box, x, y, maxW) {
+  const font = `${box.fontSize || 18}px ${box.fontFamily || 'Arial'}`
+  ctx.font = font; ctx.fillStyle = box.color || '#000'
+  const lh = (box.fontSize || 18) + 6
+  drawMultilineText(ctx, box.text, x, y, maxW, lh, font, box.color, 590)
+}
+
 const drawCanvas = () => {
   const ctx = canvas.value.getContext('2d')
   ctx.clearRect(0, 0, 800, 600)
   if (image.value) ctx.drawImage(image.value, 0, 0, 800, 600)
-  textBoxes.forEach((box, idx) => {
+  textBoxes.forEach((box) => {
     if (box.background && box.background !== 'rgba(255,255,255,0)') {
       ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = box.background
       ctx.font = `${box.fontSize || 18}px ${box.fontFamily || 'Arial'}`
-      const m = ctx.measureText(box.text); ctx.fillRect(box.x - 8, box.y - 4, m.width + 16, (box.fontSize || 18) + 8)
+      const m = ctx.measureText(box.text)
+      ctx.fillRect(box.x - 8, box.y - 4, m.width + 16, (box.fontSize || 18) + 8)
       ctx.restore()
     }
-    ctx.save(); ctx.font = `${box.fontSize || 18}px ${box.fontFamily || 'Arial'}`
-    ctx.fillStyle = box.color || '#000'
-    const mw = getTextBoxWidth(box, idx) - 16, lh = (box.fontSize || 18) + 6
-    if (box.align === 'center') { ctx.textAlign = 'center'; drawMultilineText(ctx, box.text, box.x, box.y + 7, mw, lh, ctx.font, box.color, 1, 590) }
-    else { ctx.textAlign = 'left'; drawMultilineText(ctx, box.text, box.x + 10, box.y + 7, mw, lh, ctx.font, box.color, 1, 590) }
+    const mw = boxMaxWidth(box)
+    if (box.align === 'center') {
+      ctx.textAlign = 'center'
+      drawBoxText(ctx, box, box.x, box.y + 7, mw)
+    } else if (box.align === 'right') {
+      ctx.textAlign = 'right'
+      drawBoxText(ctx, box, box.x, box.y + 7, mw)
+    } else {
+      ctx.textAlign = 'left'
+      drawBoxText(ctx, box, box.x + 10, box.y + 7, mw)
+    }
     ctx.restore()
   })
 }
@@ -369,13 +379,26 @@ label {
   user-select: none;
   border-radius: 4px;
   min-width: 40px;
-  min-height: 24px;
-  transition: box-shadow 0.2s;
+  min-height: 28px;
+  transition: box-shadow 0.15s ease;
   pointer-events: auto;
+  border: 1.5px dashed transparent;
+}
+
+.text-box:hover {
+  border-color: rgba(var(--primary-rgb), 0.25);
 }
 
 .text-box.selected {
-  box-shadow: 0 0 0 2px var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.12);
+}
+
+.text-box-inner {
+  display: block;
+  color: transparent;
+  font-size: 0;
+  pointer-events: none;
 }
 
 .delete-btn {

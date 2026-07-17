@@ -172,6 +172,7 @@ export default {
                         <div class="detail-item"><span class="detail-label">Actividad</span>{{ p.activityName }}</div>
                         <div class="detail-item"><span class="detail-label">Rol</span>{{ roleBadge(p.role) }}</div>
                         <div class="detail-item"><span class="detail-label">Fecha</span>{{ p.date }}</div>
+                        <div class="detail-item detail-full"><span class="detail-label">Ruta PDF</span>{{ p.rutaPdf || '—' }}</div>
                     </div>
                     <div class="detail-actions">
                         <button @click="downloadPdf(p.folio)" class="btn-download">
@@ -489,6 +490,11 @@ export default {
 .detail-item {
     font-size: 0.9rem;
     color: var(--text-primary);
+}
+
+.detail-full {
+    grid-column: 1 / -1;
+    word-break: break-all;
 }
 
 .detail-label {

@@ -91,7 +91,7 @@ const defaultTextBoxes = [
   { id: 'firma-one', text: 'Firma 1', x: 200, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
   { id: 'firma-two', text: 'Firma 2', x: 600, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
   { id: 'verification-text', text: 'Puede validar su constancia en:', x: 150, y: 555, fontFamily: 'Arial', fontSize: 9, color: '#999', background: 'rgba(255,255,255,0)', align: 'left' },
-  { id: 'folio-text', text: 'Folio:', x: 400, y: 570, fontFamily: 'Arial', fontSize: 9, color: '#999', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'folio-text', text: 'Folio:', x: 400, y: 555, fontFamily: 'Arial', fontSize: 9, color: '#999', background: 'rgba(255,255,255,0)', align: 'center' },
 ]
 
 watch(textBTxt, (v) => {

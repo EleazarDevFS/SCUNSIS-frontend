@@ -101,7 +101,7 @@ async function onExcelChange(event) {
   const formData = new FormData();
   formData.append('file', file);
   try {
-    const response = await fetch('http://localhost:3001/api/upload-excel', {
+    const response = await fetch('http://localhost:8082/api/upload-excel', {
       method: 'POST',
       body: formData
     });

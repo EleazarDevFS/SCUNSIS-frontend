@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps, watch } from 'vue'
+import { ref, defineProps, watch, onMounted } from 'vue'
 import EditPaperMaster from './EditPaperMaster.vue'
 import { api } from '../utils/api.js'
 import { useToast } from 'vue-toastification'
@@ -17,6 +17,32 @@ const mensaje = ref('')
 const receptor = ref('')
 const fechaSeleccionada = ref('')
 const cerrarFormulario = () => {}
+
+const events = ref([])
+const activities = ref([])
+const senders = ref([])
+const selectedEventId = ref('')
+const selectedActivityId = ref('')
+const selectedSenderId = ref('')
+const selectedRole = ref('PARTICIPANTE')
+
+onMounted(async () => {
+    try {
+        const [evtRes, actRes, sndRes] = await Promise.all([
+            api('/api/v1/event'),
+            api('/api/v1/activity'),
+            api('/api/v1/sender')
+        ])
+        if (evtRes.ok) events.value = await evtRes.json()
+        if (actRes.ok) activities.value = await actRes.json()
+        if (sndRes.ok) senders.value = await sndRes.json()
+    } catch (_) {}
+})
+
+const filteredActivities = () => {
+    if (!selectedEventId.value) return []
+    return activities.value.filter(a => a.eventId === Number(selectedEventId.value))
+}
 
 function incrementFolio(folio) {
     const match = folio.match(/^(.*?)(\d+)$/)
@@ -69,11 +95,24 @@ const submitForm = async () => {
 
         const personData = Array.isArray(persona) ? [persona] : [[persona.nombre || '', persona.primer_apellido || '', persona.segundo_apellido || '', persona.grado_academico || '', persona.grado || '']]
 
+        const body = {
+            canvasImage: image,
+            data: personData,
+            folios: currentFolio ? [currentFolio] : undefined
+        }
+
+        if (selectedSenderId.value && selectedActivityId.value && selectedEventId.value && selectedRole.value) {
+            body.senderId = Number(selectedSenderId.value)
+            body.activityId = Number(selectedActivityId.value)
+            body.eventId = Number(selectedEventId.value)
+            body.role = selectedRole.value
+        }
+
         try {
             const response = await api('/api/v1/proof/generate-pdfs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ canvasImage: image, data: personData, folios: currentFolio ? [currentFolio] : undefined })
+                body: JSON.stringify(body)
             })
             if (response.ok) {
                 const result = await response.json()
@@ -112,6 +151,7 @@ function handleFileChange(event) {
 }
 
 const excelData = ref([])
+const excelHasRole = ref(false)
 
 async function onExcelChange(event) {
   const file = event.target.files ? event.target.files[0] : event;
@@ -124,12 +164,16 @@ async function onExcelChange(event) {
       body: formData
     });
     const result = await response.json();
-    if (result.folios && Array.isArray(result.folios) && result.folios.length > 0) {
-      excelData.value = result.folios;
-    } else if (result.data && Array.isArray(result.data) && result.data.length > 1) {
+    if (result.data && Array.isArray(result.data) && result.data.length > 1) {
+      const headers = result.data[0].map(h => (h || '').toUpperCase())
+      excelHasRole.value = headers.includes('ROL')
       excelData.value = result.data.slice(1);
+    } else if (result.folios && Array.isArray(result.folios) && result.folios.length > 0) {
+      excelHasRole.value = false
+      excelData.value = result.folios;
     } else {
       excelData.value = [];
+      excelHasRole.value = false
     }
     if (excelData.value.length > 0) {
       editPaperMasterRef.value?.updatePreview(excelData.value[0]);
@@ -161,6 +205,38 @@ watch(fechaSeleccionada, (nuevaFecha) => {
         <div class="form-group">
             <label>Mensaje:</label>
             <textarea class="form-textarea" :placeholder="mensajePlaceholder" v-model="mensaje"></textarea>
+        </div>
+        <div class="form-row-group">
+            <div class="form-group">
+                <label>Evento</label>
+                <select v-model="selectedEventId" @change="selectedActivityId = ''" class="form-select">
+                    <option value="">Seleccione un evento</option>
+                    <option v-for="e in events" :key="e.eventId" :value="e.eventId">{{ e.eventName }}</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Actividad</label>
+                <select v-model="selectedActivityId" class="form-select">
+                    <option value="">Seleccione una actividad</option>
+                    <option v-for="a in filteredActivities()" :key="a.activityId" :value="a.activityId">{{ a.activityName }}</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Emisor</label>
+                <select v-model="selectedSenderId" class="form-select">
+                    <option value="">Seleccione un emisor</option>
+                    <option v-for="s in senders" :key="s.senderId" :value="s.senderId">{{ s.name }}</option>
+                </select>
+            </div>
+            <div class="form-group" v-if="excelData.length === 0 || !excelHasRole">
+                <label>Rol</label>
+                <select v-model="selectedRole" class="form-select">
+                    <option value="PARTICIPANTE">Participante</option>
+                    <option value="PONENTE">Ponente</option>
+                    <option value="ORGANIZADOR">Organizador</option>
+                    <option value="RECONOCIMIENTO">Reconocimiento</option>
+                </select>
+            </div>
         </div>
         <div class="form-group">
             <label>Cargar hoja maestra</label>
@@ -217,6 +293,27 @@ watch(fechaSeleccionada, (nuevaFecha) => {
 }
 
 .form-textarea:focus {
+    border-color: var(--primary);
+}
+
+.form-row-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    background: var(--surface);
+    outline: none;
+    transition: border-color var(--transition);
+}
+
+.form-select:focus {
     border-color: var(--primary);
 }
 

@@ -71,7 +71,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, nextTick } from 'vue'
+import { ref, reactive, watch, nextTick, onMounted } from 'vue'
 import { api } from '../utils/api.js'
 
 const props = defineProps({ valorTexto: String })
@@ -222,7 +222,7 @@ const drawCanvas = () => {
   })
 }
 
-nextTick(() => drawCanvas())
+nextTick(() => { addDefaultTextBoxes(); drawCanvas() })
 
 let extraBoxCount = 1
 const addTextBox = (e) => {

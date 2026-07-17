@@ -1,6 +1,5 @@
 <script setup>
 import { ref, defineProps, watch } from 'vue'
-import { PDFDocument } from 'pdf-lib'
 import EditPaperMaster from './EditPaperMaster.vue'
 import { api } from '../utils/api.js'
 import { useToast } from 'vue-toastification'
@@ -30,60 +29,26 @@ const submitForm = async () => {
         return;
     }
 
-    const toDownload = [];
+    const data = excelData.value.map(persona => {
+        if (Array.isArray(persona)) return persona;
+        return [persona.nombre || '', persona.primer_apellido || '', persona.segundo_apellido || '', persona.grado_academico || '', persona.grado || ''];
+    });
 
-    for (const persona of excelData.value) {
-        let nombre, primer_apellido, segundo_apellido, grado_academico, grado;
-        if (Array.isArray(persona)) {
-            nombre = persona[0] || '';
-            primer_apellido = persona[1] || '';
-            segundo_apellido = persona[2] || '';
-            grado_academico = persona[3] || '';
-            grado = persona[4] || '';
-        } else {
-            nombre = persona.nombre || '';
-            primer_apellido = persona.primer_apellido || '';
-            segundo_apellido = persona.segundo_apellido || '';
-            grado_academico = persona.grado_academico || '';
-            grado = persona.grado || '';
+    try {
+        const response = await api('/api/v1/proof/generate-pdfs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ canvasImage, data })
+        });
+        if (!response.ok) {
+            toast.error('Error al generar las constancias');
+            return;
         }
-        const nombreCompleto = [nombre, primer_apellido, segundo_apellido].filter(Boolean).join(' ');
-        const mensajePersonalizado = `Por su destacada participación, se otorga la presente constancia a ${grado ? grado + ' ' : ''}${nombreCompleto}.`;
-        receptor.value = nombreCompleto;
-        mensaje.value = mensajePersonalizado;
-        await new Promise(resolve => setTimeout(resolve, 100));
-        const canvasImg = editPaperMasterRef.value?.getCanvasImage?.();
-        if (!canvasImg) continue;
-        const tempImg = new window.Image();
-        tempImg.src = canvasImg;
-        await new Promise(resolve => { tempImg.onload = resolve; });
-        const width = tempImg.width;
-        const height = tempImg.height;
-        const pdfDoc = await PDFDocument.create();
-        const page = pdfDoc.addPage([width, height]);
-        const pngImage = await pdfDoc.embedPng(canvasImg);
-        page.drawImage(pngImage, { x: 0, y: 0, width, height });
-        const modifiedPdfBytes = await pdfDoc.save();
-        const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
-        toDownload.push({ blob, filename: `constancia-${nombreCompleto.replace(/\s+/g, '_')}.pdf` });
+        const result = await response.json();
+        toast.success(`Se generaron ${result.count} constancias en la ruta ${result.path}`);
+    } catch (err) {
+        toast.error('Error al generar las constancias');
     }
-
-    for (let i = 0; i < toDownload.length; i++) {
-        const { blob, filename } = toDownload[i];
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-        if (i < toDownload.length - 1) {
-            await new Promise(r => setTimeout(r, 600));
-        }
-    }
-    toast.success('Constancias generadas exitosamente');
 }
 
 const pdfSelect = ref(false)

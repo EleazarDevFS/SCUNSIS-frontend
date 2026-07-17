@@ -120,6 +120,9 @@ async function onExcelChange(event) {
     } else {
       excelData.value = [];
     }
+    if (excelData.value.length > 0) {
+      editPaperMasterRef.value?.updatePreview(excelData.value[0]);
+    }
     toast.success('Excel cargado correctamente');
   } catch (err) {
     toast.error('Error procesando el archivo Excel');

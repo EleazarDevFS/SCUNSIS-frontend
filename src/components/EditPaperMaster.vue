@@ -4,7 +4,7 @@
       <v-file-input label="Cargar imagen de fondo" variant="outlined" density="compact"
         accept="image/*" @change="onImageChange" prepend-icon="mdi-file-upload"
         :rules="[value => !!value || 'Por favor, cargue una imagen']" placeholder="Seleccione una imagen de fondo" hide-details />
-      <v-btn @click="addTextBox" :disabled="image === null" variant="tonal" color="primary" class="add-btn">
+      <v-btn @click="addTextBox" variant="tonal" color="primary" class="add-btn">
         Agregar Caja de Texto
       </v-btn>
     </div>
@@ -187,7 +187,18 @@ function drawBoxText(ctx, box, x, y, maxW) {
 const drawCanvas = () => {
   const ctx = canvas.value.getContext('2d')
   ctx.clearRect(0, 0, 800, 600)
-  if (image.value) ctx.drawImage(image.value, 0, 0, 800, 600)
+  if (image.value) {
+    ctx.drawImage(image.value, 0, 0, 800, 600)
+  } else {
+    ctx.fillStyle = '#fffdfa'
+    ctx.fillRect(0, 0, 800, 600)
+    ctx.strokeStyle = '#e8e4e0'
+    ctx.lineWidth = 2
+    ctx.strokeRect(12, 12, 776, 576)
+    ctx.strokeStyle = '#f0ece8'
+    ctx.lineWidth = 1
+    ctx.strokeRect(16, 16, 768, 568)
+  }
   textBoxes.forEach((box) => {
     if (box.background && box.background !== 'rgba(255,255,255,0)') {
       ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = box.background
@@ -247,7 +258,16 @@ const getCanvasImage = () => {
   return canvas.value.toDataURL('image/png')
 }
 
-defineExpose({ getCanvasImage })
+const updatePreview = (persona) => {
+  const nombre = persona[0] || persona.nombre || ''
+  const primerApellido = persona[1] || persona.primer_apellido || ''
+  const segundoApellido = persona[2] || persona.segundo_apellido || ''
+  const nombreCompleto = [nombre, primerApellido, segundoApellido].filter(Boolean).join(' ')
+  const receptorBox = textBoxes.find(b => b.id === 'receptor-text')
+  if (receptorBox) { receptorBox.text = nombreCompleto; drawCanvas() }
+}
+
+defineExpose({ getCanvasImage, updatePreview })
 </script>
 
 <style scoped>

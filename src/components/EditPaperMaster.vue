@@ -82,16 +82,16 @@ const textBTxt = ref('')
 watch(() => props.valorTexto, (v) => { textBTxt.value = v }, { immediate: true })
 
 const defaultTextBoxes = [
-  { id: 'emisor-text', text: 'UNIVERSIDAD DE LA SIERRA SUR', x: 400, y: 40, fontFamily: 'Arial', fontSize: 24, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'otorga-text', text: 'Otorga la presente constancia a:', x: 400, y: 100, fontFamily: 'Arial', fontSize: 16, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'receptor-text', text: '[Nombre del receptor]', x: 400, y: 150, fontFamily: 'Arial', fontSize: 22, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'body-text', text: textBTxt.value || '[Mensaje de la constancia]', x: 400, y: 210, fontFamily: 'Arial', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'date-text', text: 'Fecha', x: 400, y: 370, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'att-text', text: 'Atentamente: Docendo discimus', x: 400, y: 410, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'firma-one', text: 'Firma 1', x: 240, y: 480, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'firma-two', text: 'Firma 2', x: 560, y: 480, fontFamily: 'Arial', fontSize: 14, color: '#000', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'verification-text', text: 'Puede validar su constancia en:', x: 160, y: 555, fontFamily: 'Arial', fontSize: 10, color: '#666', background: 'rgba(255,255,255,0)', align: 'left' },
-  { id: 'folio-text', text: 'Folio:', x: 640, y: 555, fontFamily: 'Arial', fontSize: 10, color: '#666', background: 'rgba(255,255,255,0)', align: 'right' },
+  { id: 'emisor-text', text: 'UNIVERSIDAD DE LA SIERRA SUR', x: 400, y: 40, fontFamily: 'Times New Roman', fontSize: 28, color: '#1a237e', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'otorga-text', text: 'Otorga la presente constancia a:', x: 400, y: 100, fontFamily: 'Times New Roman', fontSize: 16, color: '#555', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'receptor-text', text: '[Nombre del receptor]', x: 400, y: 150, fontFamily: 'Times New Roman', fontSize: 24, color: '#1a237e', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'body-text', text: textBTxt.value || '[Mensaje de la constancia]', x: 400, y: 210, fontFamily: 'Times New Roman', fontSize: 13, color: '#444', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'date-text', text: 'Fecha', x: 400, y: 340, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'att-text', text: 'Atentamente: Docendo discimus', x: 400, y: 380, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'firma-one', text: 'Firma 1', x: 200, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'firma-two', text: 'Firma 2', x: 600, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'verification-text', text: 'Puede validar su constancia en:', x: 150, y: 555, fontFamily: 'Arial', fontSize: 9, color: '#999', background: 'rgba(255,255,255,0)', align: 'left' },
+  { id: 'folio-text', text: 'Folio:', x: 650, y: 555, fontFamily: 'Arial', fontSize: 9, color: '#999', background: 'rgba(255,255,255,0)', align: 'right' },
 ]
 
 watch(textBTxt, (v) => {
@@ -102,7 +102,7 @@ watch(textBTxt, (v) => {
 const addDefaultTextBoxes = () => {
   textBoxes.splice(0, textBoxes.length)
   for (const box of defaultTextBoxes) {
-    textBoxes.push({ ...box, fontFamily: 'Arial', color: '#000000', fontSize: 18, background: 'rgba(255,255,255,0)' })
+    textBoxes.push({ ...box, background: 'rgba(255,255,255,0)' })
   }
   selectedBox.value = null; draggingIndex = null
 }

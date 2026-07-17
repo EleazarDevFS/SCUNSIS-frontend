@@ -23,7 +23,7 @@ const submitForm = async () => {
         toast.error('Primero carga un archivo Excel válido.')
         return;
     }
-    const canvasImage = editPaperMasterRef.value?.getCanvasImage?.();
+    const canvasImage = editPaperMasterRef.value?.getCanvasImage?.(3);
     if (!canvasImage) {
         toast.error('Primero edita y carga la hoja maestra en el editor.')
         return;

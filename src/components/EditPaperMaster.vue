@@ -159,6 +159,8 @@ const onImageChange = (e) => {
   reader.readAsDataURL(file)
 }
 
+const W = 800, H = 600
+
 function boxMaxWidth(box) {
   if (box.align === 'center') return 500
   return 340
@@ -185,20 +187,21 @@ function drawBoxText(ctx, box, x, y, maxW) {
   drawMultilineText(ctx, box.text, x, y, maxW, lh, font, box.color, 590)
 }
 
-const drawCanvas = () => {
-  const ctx = canvas.value.getContext('2d')
-  ctx.clearRect(0, 0, 800, 600)
+function renderOn(ctx, scale) {
+  ctx.clearRect(0, 0, W * scale, H * scale)
+  ctx.save()
+  ctx.scale(scale, scale)
   if (image.value) {
-    ctx.drawImage(image.value, 0, 0, 800, 600)
+    ctx.drawImage(image.value, 0, 0, W * scale, H * scale)
   } else {
     ctx.fillStyle = '#fffdfa'
-    ctx.fillRect(0, 0, 800, 600)
+    ctx.fillRect(0, 0, W, H)
     ctx.strokeStyle = '#e8e4e0'
     ctx.lineWidth = 2
-    ctx.strokeRect(12, 12, 776, 576)
+    ctx.strokeRect(12, 12, W - 24, H - 24)
     ctx.strokeStyle = '#f0ece8'
     ctx.lineWidth = 1
-    ctx.strokeRect(16, 16, 768, 568)
+    ctx.strokeRect(16, 16, W - 32, H - 32)
   }
   textBoxes.forEach((box) => {
     if (box.background && box.background !== 'rgba(255,255,255,0)') {
@@ -221,6 +224,12 @@ const drawCanvas = () => {
     }
     ctx.restore()
   })
+  ctx.restore()
+}
+
+const drawCanvas = () => {
+  if (!canvas.value) return
+  renderOn(canvas.value.getContext('2d'), 1)
 }
 
 nextTick(() => { addDefaultTextBoxes(); drawCanvas() })
@@ -249,14 +258,17 @@ const onDrag = (e) => {
   if (draggingIndex === null || !textBoxes[draggingIndex]) return
   const cr = canvasContainer.value.getBoundingClientRect(), b = textBoxes[draggingIndex]
   let nx = e.clientX - cr.left - offset.x, ny = e.clientY - cr.top - offset.y
-  b.x = Math.max(0, Math.min(nx, 780)); b.y = Math.max(0, Math.min(ny, 570))
+  b.x = Math.max(0, Math.min(nx, W - 20)); b.y = Math.max(0, Math.min(ny, H - 30))
   drawCanvas()
 }
 
-const getCanvasImage = () => {
+const getCanvasImage = (scale = 3) => {
   if (!canvas.value) return undefined
-  window.__drawForPDF = true; drawCanvas(); window.__drawForPDF = false
-  return canvas.value.toDataURL('image/png')
+  const offscreen = document.createElement('canvas')
+  offscreen.width = W * scale
+  offscreen.height = H * scale
+  renderOn(offscreen.getContext('2d'), scale)
+  return offscreen.toDataURL('image/png')
 }
 
 const updatePreview = (persona) => {

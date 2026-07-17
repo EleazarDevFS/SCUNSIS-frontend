@@ -18,6 +18,10 @@ export default {
             showEventForm: false,
             editingEvent: null,
             eventForm: { eventName: '', eventType: '', eventPlace: '', eventDescription: '', startDate: '', endDate: '' },
+            activities: [],
+            showActivityForm: false,
+            editingActivity: null,
+            activityForm: { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' },
             loading: false
         }
     },
@@ -145,6 +149,83 @@ export default {
             } catch (err) {
                 alert(err.message);
             }
+        },
+        async fetchActivities() {
+            this.loading = true;
+            try {
+                const [actRes, evtRes] = await Promise.all([
+                    fetch(`${API}/activity`),
+                    fetch(`${API}/event`)
+                ]);
+                if (!actRes.ok) throw new Error('Error al cargar actividades');
+                this.activities = await actRes.json();
+                this.events = await evtRes.json();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+        openNewActivity() {
+            this.editingActivity = null;
+            this.activityForm = { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' };
+            this.showActivityForm = true;
+            this.fetchEvents();
+        },
+        openEditActivity(act) {
+            this.editingActivity = act;
+            this.activityForm = {
+                eventId: act.eventId || '',
+                activityName: act.activityName,
+                activityDescription: act.activityDescription || '',
+                activityPlace: act.activityPlace || '',
+                startDate: act.startDate || '',
+                endDate: act.endDate || ''
+            };
+            this.showActivityForm = true;
+            this.fetchEvents();
+        },
+        cancelActivityForm() {
+            this.showActivityForm = false;
+            this.editingActivity = null;
+            this.activityForm = { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' };
+        },
+        async saveActivity() {
+            if (!this.activityForm.activityName.trim()) {
+                alert('El nombre de la actividad es requerido');
+                return;
+            }
+            if (!this.activityForm.eventId) {
+                alert('Debe seleccionar un evento');
+                return;
+            }
+            try {
+                const body = { ...this.activityForm, eventId: Number(this.activityForm.eventId) };
+                const url = this.editingActivity
+                    ? `${API}/activity/${this.editingActivity.activityId}`
+                    : `${API}/activity`;
+                const method = this.editingActivity ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error('Error al guardar actividad');
+                this.cancelActivityForm();
+                await this.fetchActivities();
+            } catch (err) {
+                alert(err.message);
+            }
+        },
+        async deleteActivity(id) {
+            if (!confirm('¿Eliminar esta actividad?')) return;
+            try {
+                const res = await fetch(`${API}/activity/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Error al eliminar');
+                await this.fetchActivities();
+            } catch (err) {
+                alert(err.message);
+            }
         }
     },
     mounted() {
@@ -159,7 +240,7 @@ export default {
             <div class="tabs">
                 <button :class="['tab', { active: activeTab === 'senders' }]" @click="activeTab = 'senders'; fetchSenders()">Emisores</button>
                 <button :class="['tab', { active: activeTab === 'events' }]" @click="activeTab = 'events'">Eventos</button>
-                <button :class="['tab', { active: activeTab === 'activities' }]" @click="activeTab = 'activities'">Actividades</button>
+                <button :class="['tab', { active: activeTab === 'activities' }]" @click="activeTab = 'activities'; fetchActivities()">Actividades</button>
                 <button :class="['tab', { active: activeTab === 'receivers' }]" @click="activeTab = 'receivers'">Receptores</button>
             </div>
             <div class="tab-content">
@@ -279,8 +360,69 @@ export default {
                 <div v-if="activeTab === 'activities'">
                     <div class="section-header">
                         <h3>Actividades</h3>
+                        <button class="btn-add" @click="openNewActivity">+ Nueva actividad</button>
                     </div>
-                    <div class="placeholder-content">Sección en construcción</div>
+                    <div v-if="showActivityForm" class="form-card">
+                        <h4>{{ editingActivity ? 'Editar actividad' : 'Nueva actividad' }}</h4>
+                        <div class="form-row">
+                            <label>Evento:</label>
+                            <select v-model="activityForm.eventId" class="form-input">
+                                <option value="">Seleccione un evento</option>
+                                <option v-for="e in events" :key="e.eventId" :value="e.eventId">{{ e.eventName }}</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Nombre de la actividad:</label>
+                            <input v-model="activityForm.activityName" placeholder="Nombre" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Descripción:</label>
+                            <textarea v-model="activityForm.activityDescription" placeholder="Descripción" class="form-input" rows="3"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <label>Lugar:</label>
+                            <input v-model="activityForm.activityPlace" placeholder="Lugar" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Fecha inicio:</label>
+                            <input type="date" v-model="activityForm.startDate" class="form-input" />
+                        </div>
+                        <div class="form-row">
+                            <label>Fecha fin:</label>
+                            <input type="date" v-model="activityForm.endDate" class="form-input" />
+                        </div>
+                        <div class="form-actions">
+                            <button @click="saveActivity" class="btn-save">Guardar</button>
+                            <button @click="cancelActivityForm" class="btn-cancel">Cancelar</button>
+                        </div>
+                    </div>
+                    <div v-if="loading" class="loading">Cargando...</div>
+                    <table v-else-if="activities.length" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Evento</th>
+                                <th>Lugar</th>
+                                <th>Fecha inicio</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="a in activities" :key="a.activityId">
+                                <td>{{ a.activityId }}</td>
+                                <td>{{ a.activityName }}</td>
+                                <td>{{ a.eventName || '—' }}</td>
+                                <td>{{ a.activityPlace || '—' }}</td>
+                                <td>{{ a.startDate || '—' }}</td>
+                                <td class="actions-cell">
+                                    <button @click="openEditActivity(a)" class="btn-edit">Editar</button>
+                                    <button @click="deleteActivity(a.activityId)" class="btn-delete">Eliminar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-else class="empty">No hay actividades registradas</div>
                 </div>
                 <div v-if="activeTab === 'receivers'">
                     <div class="section-header">

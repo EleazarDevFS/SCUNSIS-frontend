@@ -23,31 +23,49 @@ const submitForm = async () => {
         toast.error('Primero carga un archivo Excel válido.')
         return;
     }
-    const canvasImage = editPaperMasterRef.value?.getCanvasImage?.(3);
-    if (!canvasImage) {
+
+    if (!editPaperMasterRef.value?.getCanvasImage?.(3)) {
         toast.error('Primero edita y carga la hoja maestra en el editor.')
         return;
     }
 
-    const data = excelData.value.map(persona => {
-        if (Array.isArray(persona)) return persona;
-        return [persona.nombre || '', persona.primer_apellido || '', persona.segundo_apellido || '', persona.grado_academico || '', persona.grado || ''];
-    });
+    let totalCount = 0
+    let allFolios = []
+    const firstPersona = excelData.value[0]
 
-    try {
-        const response = await api('/api/v1/proof/generate-pdfs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ canvasImage, data })
-        });
-        if (!response.ok) {
-            toast.error('Error al generar las constancias');
-            return;
+    for (const persona of excelData.value) {
+        editPaperMasterRef.value?.updatePreview(persona)
+
+        const image = editPaperMasterRef.value?.getCanvasImage?.(3)
+        if (!image) continue
+
+        const personData = Array.isArray(persona) ? [persona] : [[persona.nombre || '', persona.primer_apellido || '', persona.segundo_apellido || '', persona.grado_academico || '', persona.grado || '']]
+
+        try {
+            const response = await api('/api/v1/proof/generate-pdfs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ canvasImage: image, data: personData })
+            })
+            if (response.ok) {
+                const result = await response.json()
+                totalCount += result.count || 1
+                if (result.folios) allFolios.push(...result.folios)
+                if (result.generatedFolios) allFolios.push(...result.generatedFolios)
+            }
+        } catch (_) {}
+    }
+
+    editPaperMasterRef.value?.updatePreview(firstPersona)
+
+    if (totalCount > 0) {
+        if (allFolios.length) {
+            toast.success(`Se generaron ${totalCount} constancias. Folios: ${allFolios.join(', ')}`)
+        } else {
+            toast.success(`Se generaron ${totalCount} constancias`)
         }
-        const result = await response.json();
-        toast.success(`Se generaron ${result.count} constancias en la ruta ${result.path}`);
-    } catch (err) {
-        toast.error('Error al generar las constancias');
+    } else {
+        toast.error('Error al generar las constancias')
     }
 }
 
@@ -122,7 +140,7 @@ watch(fechaSeleccionada, (nuevaFecha) => {
         </div>
         <div class="form-actions">
             <button type="button" class="btn-secondary" @click="cerrarFormulario">Cancelar</button>
-            <button type="submit" class="btn-primary" @click="submitForm">Generar</button>
+            <button type="submit" class="btn-primary">Generar</button>
         </div>
     </form>
 </template>

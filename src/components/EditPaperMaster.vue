@@ -7,6 +7,9 @@
       <v-btn @click="addTextBox" variant="tonal" color="primary" class="add-btn">
         Agregar Caja de Texto
       </v-btn>
+      <v-btn @click="resetPositions" variant="tonal" color="secondary" class="reset-btn">
+        Orden por defecto
+      </v-btn>
     </div>
 
     <div class="editor-main">
@@ -21,7 +24,8 @@
             transform: box.align === 'center' ? 'translateX(-50%)' : box.align === 'right' ? 'translateX(-100%)' : 'none',
           }" :class="{ selected: selectedBox === index }" @mousedown="startDrag(index, $event)"
             @click.stop="selectBox(index)">
-            <span class="text-box-inner">{{ box.text }}</span>
+            <a v-if="box.id === 'verification-text'" :href="'https://www.unsis-constancias.edu.mx'" target="_blank" class="text-box-link" @click.stop>{{ box.text }}</a>
+            <span v-else class="text-box-inner">{{ box.text }}</span>
             <button v-if="box.id && box.id.startsWith('extra-text-')" class="delete-btn"
               @click.stop="removeTextBox(index)">✕</button>
           </div>
@@ -58,12 +62,8 @@
               label="Tamaño (px)" variant="outlined" density="compact" hide-details />
           </div>
           <div class="sidebar-group">
-            <label>Fondo</label>
-            <v-color-picker v-model="textBoxes[selectedBox].background" mode="rgba" show-swatches hide-canvas hide-inputs
-              dot-size="16" swatches-max-height="100" />
-            <v-btn @click="clearBackground" variant="outlined" size="small">
-              Quitar fondo
-            </v-btn>
+            <v-checkbox v-model="textBoxes[selectedBox].bold" label="Negrita" hide-details density="compact" />
+            <v-checkbox v-model="textBoxes[selectedBox].italic" label="Cursiva" hide-details density="compact" />
           </div>
         </div>
       </div>
@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, nextTick, onMounted } from 'vue'
+import { ref, reactive, watch, nextTick } from 'vue'
 import { api } from '../utils/api.js'
 
 const props = defineProps({ valorTexto: String })
@@ -82,16 +82,16 @@ const textBTxt = ref('')
 watch(() => props.valorTexto, (v) => { textBTxt.value = v }, { immediate: true })
 
 const defaultTextBoxes = [
-  { id: 'emisor-text', text: 'UNIVERSIDAD DE LA SIERRA SUR', x: 400, y: 40, fontFamily: 'Times New Roman', fontSize: 28, color: '#1a237e', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'otorga-text', text: 'Otorga la presente constancia a:', x: 400, y: 100, fontFamily: 'Times New Roman', fontSize: 16, color: '#555', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'receptor-text', text: '[Nombre del receptor]', x: 400, y: 150, fontFamily: 'Times New Roman', fontSize: 24, color: '#1a237e', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'body-text', text: textBTxt.value || '[Mensaje de la constancia]', x: 400, y: 210, fontFamily: 'Times New Roman', fontSize: 13, color: '#444', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'date-text', text: 'Fecha', x: 400, y: 340, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'att-text', text: 'Atentamente: Docendo discimus', x: 400, y: 380, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'firma-one', text: 'Firma 1', x: 200, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'firma-two', text: 'Firma 2', x: 600, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'verification-text', text: 'Puede validar su constancia en:', x: 200, y: 555, fontFamily: 'Arial', fontSize: 9, color: '#999', background: 'rgba(255,255,255,0)', align: 'center' },
-  { id: 'folio-text', text: 'Folio:', x: 600, y: 555, fontFamily: 'Arial', fontSize: 9, color: '#999', background: 'rgba(255,255,255,0)', align: 'center' },
+  { id: 'emisor-text', text: 'UNIVERSIDAD DE LA SIERRA SUR', x: 400, y: 40, fontFamily: 'Times New Roman', fontSize: 28, color: '#1a237e', bold: true, italic: false, align: 'center' },
+  { id: 'otorga-text', text: 'Otorga la presente constancia a:', x: 400, y: 100, fontFamily: 'Times New Roman', fontSize: 16, color: '#555', bold: false, italic: false, align: 'center' },
+  { id: 'receptor-text', text: '[Nombre del receptor]', x: 400, y: 150, fontFamily: 'Times New Roman', fontSize: 24, color: '#1a237e', bold: false, italic: false, align: 'center' },
+  { id: 'body-text', text: textBTxt.value || '[Mensaje de la constancia]', x: 400, y: 210, fontFamily: 'Times New Roman', fontSize: 13, color: '#444', bold: false, italic: false, align: 'center' },
+  { id: 'date-text', text: 'Fecha', x: 400, y: 340, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', bold: false, italic: false, align: 'center' },
+  { id: 'att-text', text: 'Atentamente: Docendo discimus', x: 400, y: 380, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', bold: false, italic: false, align: 'center' },
+  { id: 'firma-one', text: 'Firma 1', x: 200, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', bold: false, italic: false, align: 'center' },
+  { id: 'firma-two', text: 'Firma 2', x: 600, y: 460, fontFamily: 'Times New Roman', fontSize: 14, color: '#333', bold: false, italic: false, align: 'center' },
+  { id: 'verification-text', text: 'Puede validar su constancia en: www.unsis-constancias.edu.mx', x: 200, y: 555, fontFamily: 'Arial', fontSize: 11, color: '#999', bold: false, italic: false, align: 'center' },
+  { id: 'folio-text', text: 'Folio:', x: 600, y: 555, fontFamily: 'Arial', fontSize: 11, color: '#999', bold: false, italic: false, align: 'center' },
 ]
 
 watch(textBTxt, (v) => {
@@ -102,7 +102,7 @@ watch(textBTxt, (v) => {
 const addDefaultTextBoxes = () => {
   textBoxes.splice(0, textBoxes.length)
   for (const box of defaultTextBoxes) {
-    textBoxes.push({ ...box, background: 'rgba(255,255,255,0)' })
+    textBoxes.push({ ...box })
   }
   selectedBox.value = null; draggingIndex = null
 }
@@ -125,12 +125,6 @@ watch(selectedDate, (d) => {
   }
 })
 
-const clearBackground = (e) => {
-  e.preventDefault()
-  if (selectedBox.value !== null && textBoxes[selectedBox.value])
-    textBoxes[selectedBox.value].background = 'rgba(255,255,255,0)'
-}
-
 watch(selectedBox, (n, o) => {
   drawCanvas()
   if (o !== null && textBoxes[o]) { textBoxes[o].__unwatchers?.forEach(u => u()); textBoxes[o].__unwatchers = undefined }
@@ -140,7 +134,8 @@ watch(selectedBox, (n, o) => {
       watch(() => b.fontFamily, drawCanvas),
       watch(() => b.fontSize, drawCanvas),
       watch(() => b.color, drawCanvas),
-      watch(() => b.background, drawCanvas)
+      watch(() => b.bold, drawCanvas),
+      watch(() => b.italic, drawCanvas)
     ]
   }
 })
@@ -181,7 +176,7 @@ function drawMultilineText(ctx, text, x, y, maxW, lineH, font, color, maxY) {
 }
 
 function drawBoxText(ctx, box, x, y, maxW) {
-  const font = `${box.fontSize || 18}px ${box.fontFamily || 'Arial'}`
+  const font = `${box.italic ? 'italic ' : ''}${box.bold ? 'bold ' : ''}${box.fontSize || 18}px ${box.fontFamily || 'Arial'}`
   ctx.font = font; ctx.fillStyle = box.color || '#000'
   const lh = (box.fontSize || 18) + 6
   drawMultilineText(ctx, box.text, x, y, maxW, lh, font, box.color, 590)
@@ -204,13 +199,6 @@ function renderOn(ctx, scale) {
     ctx.strokeRect(16, 16, W - 32, H - 32)
   }
   textBoxes.forEach((box) => {
-    if (box.background && box.background !== 'rgba(255,255,255,0)') {
-      ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = box.background
-      ctx.font = `${box.fontSize || 18}px ${box.fontFamily || 'Arial'}`
-      const m = ctx.measureText(box.text)
-      ctx.fillRect(box.x - 8, box.y - 4, m.width + 16, (box.fontSize || 18) + 8)
-      ctx.restore()
-    }
     const mw = boxMaxWidth(box)
     if (box.align === 'center') {
       ctx.textAlign = 'center'
@@ -236,7 +224,7 @@ nextTick(() => { addDefaultTextBoxes(); drawCanvas() })
 let extraBoxCount = 1
 const addTextBox = (e) => {
   e.preventDefault()
-  textBoxes.push({ id: `extra-text-${extraBoxCount++}`, text: 'Nuevo texto', x: 100, y: 100, fontFamily: 'Arial', color: '#000000', fontSize: 18, background: 'rgba(255,255,255,0)' })
+  textBoxes.push({ id: `extra-text-${extraBoxCount++}`, text: 'Nuevo texto', x: 100, y: 100, fontFamily: 'Arial', color: '#000000', fontSize: 18, bold: false, italic: false })
 }
 
 const selectBox = (i) => { selectedBox.value = i }
@@ -245,9 +233,25 @@ const removeTextBox = (i) => {
   if (textBoxes[i]?.id?.startsWith('extra-text-')) { textBoxes.splice(i, 1); if (selectedBox.value === i) selectedBox.value = null }
 }
 
+const resetPositions = () => {
+  for (const def of defaultTextBoxes) {
+    const box = textBoxes.find(b => b.id === def.id)
+    if (box) { box.x = def.x; box.y = def.y }
+  }
+  drawCanvas()
+}
+
 const startDrag = (i, e) => {
   draggingIndex = i; const el = e.target.closest('.text-box'); const r = el.getBoundingClientRect()
-  offset.x = e.clientX - r.left; offset.y = e.clientY - r.top
+  const box = textBoxes[i]
+  if (box.align === 'center') {
+    offset.x = e.clientX - (r.left + r.width / 2)
+  } else if (box.align === 'right') {
+    offset.x = e.clientX - r.right
+  } else {
+    offset.x = e.clientX - r.left
+  }
+  offset.y = e.clientY - r.top
   selectedBox.value = i; window.addEventListener('mousemove', onDrag); window.addEventListener('mouseup', stopDrag)
 }
 
@@ -279,7 +283,12 @@ const updatePreview = (persona) => {
   if (receptorBox) { receptorBox.text = nombreCompleto; drawCanvas() }
 }
 
-defineExpose({ getCanvasImage, updatePreview })
+const updateFolio = (folio) => {
+  const folioBox = textBoxes.find(b => b.id === 'folio-text')
+  if (folioBox) { folioBox.text = `Folio: ${folio}`; drawCanvas() }
+}
+
+defineExpose({ getCanvasImage, updatePreview, updateFolio })
 </script>
 
 <style scoped>
@@ -431,6 +440,13 @@ label {
   color: transparent;
   pointer-events: none;
   white-space: nowrap;
+}
+
+.text-box-link {
+  display: block;
+  color: transparent;
+  white-space: nowrap;
+  text-decoration: none;
 }
 
 .delete-btn {

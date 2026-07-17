@@ -29,6 +29,9 @@ const submitForm = async () => {
         toast.error('Primero edita y carga la hoja maestra en el editor.')
         return;
     }
+
+    const toDownload = [];
+
     for (const persona of excelData.value) {
         let nombre, primer_apellido, segundo_apellido, grado_academico, grado;
         if (Array.isArray(persona)) {
@@ -62,13 +65,23 @@ const submitForm = async () => {
         page.drawImage(pngImage, { x: 0, y: 0, width, height });
         const modifiedPdfBytes = await pdfDoc.save();
         const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+        toDownload.push({ blob, filename: `constancia-${nombreCompleto.replace(/\s+/g, '_')}.pdf` });
+    }
+
+    for (let i = 0; i < toDownload.length; i++) {
+        const { blob, filename } = toDownload[i];
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `constancia-${nombreCompleto.replace(/\s+/g, '_')}.pdf`;
+        link.download = filename;
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        if (i < toDownload.length - 1) {
+            await new Promise(r => setTimeout(r, 600));
+        }
     }
     toast.success('Constancias generadas exitosamente');
 }

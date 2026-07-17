@@ -397,8 +397,8 @@ label {
 .text-box-inner {
   display: block;
   color: transparent;
-  font-size: 0;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 .delete-btn {

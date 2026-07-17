@@ -18,7 +18,7 @@
             left: box.x + 'px',
             width: box.align === 'center' ? 'auto' : '360px',
             minWidth: '40px',
-            transform: box.align === 'center' ? 'translateX(-50%)' : 'none',
+            transform: box.align === 'center' ? 'translateX(-50%)' : box.align === 'right' ? 'translateX(-100%)' : 'none',
           }" :class="{ selected: selectedBox === index }" @mousedown="startDrag(index, $event)"
             @click.stop="selectBox(index)">
             <span class="text-box-inner">{{ box.text }}</span>

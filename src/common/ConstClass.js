@@ -1,11 +1,6 @@
-// Constante simple
-const API_URL = 'http://localhost:8082/api/v1';
-
-// Múltiples constantes
+const API_URL = '/api/v1';
 const PORT = 8082;
 const BASE_PATH = '/api/v1';
-
-// Objeto con constantes mas comunes
 const API_ENDPOINTS = {
     FOLIO: '/folio',
     PROOF: '/proof',
@@ -15,10 +10,8 @@ const API_ENDPOINTS = {
     RECEIVER: '/receiver',
     SENDER: '/sender'
 };
-
-// Constantes de configuración
 const CONFIG = {
-    API_BASE_URL: 'http://localhost:8082/api/v1',
+    API_BASE_URL: '/api/v1',
     TIMEOUT: 5000,
     RETRY_ATTEMPTS: 3
 };

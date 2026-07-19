@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8082'
+const API_BASE = ''
 
 export async function api(path, options = {}) {
   const token = localStorage.getItem('token')

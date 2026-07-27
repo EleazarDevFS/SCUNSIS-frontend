@@ -147,6 +147,7 @@ const submitForm = async () => {
     }
 }
 
+const loadingExcel = ref(false)
 const pdfSelect = ref(false)
 const formData = ref({ name: '' })
 function handleFileChange(event) {
@@ -168,6 +169,7 @@ const excelRolIndex = ref(-1)
 async function onExcelChange(event) {
   const file = event.target.files ? event.target.files[0] : event;
   if (!file) return;
+  loadingExcel.value = true;
   const formData = new FormData();
   formData.append('file', file);
   try {
@@ -196,6 +198,8 @@ async function onExcelChange(event) {
     toast.success('Excel cargado correctamente');
   } catch (err) {
     toast.error('Error procesando el archivo Excel');
+  } finally {
+    loadingExcel.value = false;
   }
 };
 
@@ -208,6 +212,12 @@ watch(fechaSeleccionada, (nuevaFecha) => {
 
 <template>
     <form class="my-form" @submit.prevent="submitForm">
+        <div v-if="loadingExcel" class="loading-overlay">
+            <div class="loading-box">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Cargando archivo, espere un momento...</p>
+            </div>
+        </div>
         <div class="form-header">
             <h3>{{ titulo }}</h3>
         </div>
@@ -441,5 +451,46 @@ watch(fechaSeleccionada, (nuevaFecha) => {
 
 .btn-secondary:hover {
     background: var(--border);
+}
+
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-box {
+    background: #fff;
+    padding: 40px 48px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.loading-spinner {
+    width: 44px;
+    height: 44px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin-overlay 0.7s linear infinite;
+}
+
+@keyframes spin-overlay {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin: 0;
 }
 </style>

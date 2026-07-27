@@ -35,8 +35,8 @@ const vuetify = createVuetify({
 
 const app = createApp(App)
 app.use(Toast, {
-  position: 'bottom-right',
-  timeout: 3000,
+  position: 'top-right',
+  timeout: 2000,
   transition: 'Vue-Toastification__bounce',
   maxToasts: 5,
   newestOnTop: true

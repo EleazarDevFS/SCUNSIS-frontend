@@ -65,9 +65,10 @@ export default {
         async fetchSenders() {
             this.loading = true;
             try {
-                const res = await api('/api/v1/sender');
+                const res = await api('/api/v1/sender?size=1000');
                 if (!res.ok) throw new Error('Error al cargar emisores');
-                this.senders = await res.json();
+                const page = await res.json();
+                this.senders = page.content ?? page;
             } catch (err) {
                 if (err.message !== 'Sesion expirada') this.toast.error(err.message);
             } finally { this.loading = false; }
@@ -90,7 +91,7 @@ export default {
         },
         async fetchEvents() {
             this.loading = true;
-            try { const res = await api('/api/v1/event'); if (!res.ok) throw new Error(); this.events = await res.json(); }
+            try { const res = await api('/api/v1/event?size=1000'); if (!res.ok) throw new Error(); const page = await res.json(); this.events = page.content ?? page; }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
         openNewEvent() { this.editingEvent = null; this.eventForm = { eventName: '', eventType: 'FISICO', eventPlace: '', eventDescription: '', startDate: '', endDate: '' }; this.showEventForm = true; },
@@ -112,7 +113,12 @@ export default {
         },
         async fetchActivities() {
             this.loading = true;
-            try { const [actRes, evtRes] = await Promise.all([api('/api/v1/activity'), api('/api/v1/event')]); if (!actRes.ok) throw new Error(); this.activities = await actRes.json(); this.events = await evtRes.json(); }
+            try {
+                const [actRes, evtRes] = await Promise.all([api('/api/v1/activity?size=1000'), api('/api/v1/event?size=1000')]);
+                if (!actRes.ok) throw new Error();
+                let actPage = await actRes.json(); this.activities = actPage.content ?? actPage;
+                let evtPage = await evtRes.json(); this.events = evtPage.content ?? evtPage;
+            }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
         openNewActivity() { this.editingActivity = null; this.activityForm = { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' }; this.showActivityForm = true; this.fetchEvents(); },
@@ -136,7 +142,7 @@ export default {
         },
         async fetchReceivers() {
             this.loading = true;
-            try { const res = await api('/api/v1/receiver'); if (!res.ok) throw new Error(); this.receivers = await res.json(); }
+            try { const res = await api('/api/v1/receiver?size=1000'); if (!res.ok) throw new Error(); const page = await res.json(); this.receivers = page.content ?? page; }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
         openNewReceiver() { this.editingReceiver = null; this.receiverForm = { nombre: '', primer_apellido: '', segundo_apellido: '', telefono: '', email: '', grado_academico: '' }; this.showReceiverForm = true; },
@@ -158,7 +164,14 @@ export default {
         },
         async openBulkUpload() {
             this.bulkResult = null; this.bulkFile = null; this.bulkEventId = ''; this.bulkActivityId = ''; this.bulkSenderId = ''; this.bulkRole = '';
-            try { const [evtRes, actRes, sndRes] = await Promise.all([api('/api/v1/event'), api('/api/v1/activity'), api('/api/v1/sender')]); this.bulkEvents = await evtRes.json(); this.bulkActivities = await actRes.json(); this.bulkSenders = await sndRes.json(); }
+            try {
+                const [evtRes, actRes, sndRes] = await Promise.all([
+                    api('/api/v1/event?size=1000'), api('/api/v1/activity?size=1000'), api('/api/v1/sender?size=1000')
+                ]);
+                let evtPage = await evtRes.json(); this.bulkEvents = evtPage.content ?? evtPage;
+                let actPage = await actRes.json(); this.bulkActivities = actPage.content ?? actPage;
+                let sndPage = await sndRes.json(); this.bulkSenders = sndPage.content ?? sndPage;
+            }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error('Error al cargar datos'); }
         },
         onBulkFileChange(e) { this.bulkFile = e.target.files[0]; },
@@ -181,7 +194,7 @@ export default {
         },
         async fetchUsers() {
             this.loading = true;
-            try { const res = await api('/api/v1/users'); if (!res.ok) throw new Error(); this.users = await res.json(); }
+            try { const res = await api('/api/v1/users?size=1000'); if (!res.ok) throw new Error(); const page = await res.json(); this.users = page.content ?? page; }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
         openNewUser() { this.editingUser = null; this.userForm = { username: '', password: '', role: 'CAPTURISTA' }; this.showUserForm = true; },

@@ -30,13 +30,13 @@ const generando = ref(false)
 onMounted(async () => {
     try {
         const [evtRes, actRes, sndRes] = await Promise.all([
-            api('/api/v1/event'),
-            api('/api/v1/activity'),
-            api('/api/v1/sender')
+            api('/api/v1/event?size=1000'),
+            api('/api/v1/activity?size=1000'),
+            api('/api/v1/sender?size=1000')
         ])
-        if (evtRes.ok) events.value = await evtRes.json()
-        if (actRes.ok) activities.value = await actRes.json()
-        if (sndRes.ok) senders.value = await sndRes.json()
+        if (evtRes.ok) { const page = await evtRes.json(); events.value = page.content ?? page; }
+        if (actRes.ok) { const page = await actRes.json(); activities.value = page.content ?? page; }
+        if (sndRes.ok) { const page = await sndRes.json(); senders.value = page.content ?? page; }
     } catch (_) {}
 })
 

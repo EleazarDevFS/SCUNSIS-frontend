@@ -17,7 +17,11 @@ export default {
             filterDateTo: '',
             expandedFolio: null,
             downloadingFolio: null,
-            userRole: localStorage.getItem('role')
+            userRole: localStorage.getItem('role'),
+            page: 0,
+            size: 20,
+            totalPages: 0,
+            totalElements: 0
         }
     },
     computed: {
@@ -37,15 +41,23 @@ export default {
         async fetchProofs() {
             this.loading = true;
             try {
-                const res = await api('/api/v1/proof');
+                const res = await api(`/api/v1/proof?page=${this.page}&size=${this.size}`);
                 if (!res.ok) throw new Error('Error al cargar historial');
-                this.proofs = await res.json();
+                const page = await res.json();
+                this.proofs = page.content ?? page;
+                this.totalPages = page.totalPages ?? 0;
+                this.totalElements = page.totalElements ?? this.proofs.length;
                 this.applyFilters();
             } catch (err) {
                 if (err.message !== 'Sesion expirada') this.toast.error(err.message);
             } finally {
                 this.loading = false;
             }
+        },
+        setPage(newPage) {
+            if (newPage < 0 || newPage >= this.totalPages) return;
+            this.page = newPage;
+            this.fetchProofs();
         },
         applyFilters() {
             let result = [...this.proofs];
@@ -195,6 +207,13 @@ export default {
                     </div>
                 </div>
             </div>
+        </div>
+        <div v-if="totalPages > 0" class="pagination">
+            <button @click="setPage(0)" :disabled="page === 0" class="page-btn">&laquo;</button>
+            <button @click="setPage(page - 1)" :disabled="page === 0" class="page-btn">&lsaquo;</button>
+            <span class="page-info">Página {{ page + 1 }} de {{ totalPages }} ({{ totalElements }} resultados)</span>
+            <button @click="setPage(page + 1)" :disabled="page >= totalPages - 1" class="page-btn">&rsaquo;</button>
+            <button @click="setPage(totalPages - 1)" :disabled="page >= totalPages - 1" class="page-btn">&raquo;</button>
         </div>
     </div>
 </template>
@@ -574,5 +593,41 @@ export default {
 .btn-delete:hover {
     background: #FEE2E2;
     border-color: #EF4444;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 0;
+}
+
+.page-btn {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-info {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 0 8px;
 }
 </style>

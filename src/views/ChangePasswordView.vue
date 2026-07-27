@@ -173,7 +173,9 @@ function cancel() {
 
 .brand-logo :deep(img) {
   width: 80px;
-  filter: brightness(0) invert(1);
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
 }
 
 .brand-title {

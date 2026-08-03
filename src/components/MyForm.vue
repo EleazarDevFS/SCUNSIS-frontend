@@ -31,7 +31,7 @@ onMounted(async () => {
     try {
         const [evtRes, actRes, sndRes] = await Promise.all([
             api('/api/v1/event?size=1000'),
-            api('/api/v1/activity?size=1000'),
+            api('/api/v1/activity?page=0&size=1000&sort=activityName&direction=ASC'),
             api('/api/v1/sender?size=1000')
         ])
         if (evtRes.ok) { const page = await evtRes.json(); events.value = page.content ?? page; }

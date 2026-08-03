@@ -1,9 +1,11 @@
 <script>
 import { api } from '../utils/api.js';
 import { useToast } from 'vue-toastification';
+import PaginationToolbar from '../components/PaginationToolbar.vue';
 
 export default {
     name: 'HistorialView',
+    components: { PaginationToolbar },
     setup() {
         return { toast: useToast() };
     },
@@ -21,7 +23,10 @@ export default {
             page: 0,
             size: 20,
             totalPages: 0,
-            totalElements: 0
+            totalElements: 0,
+            sortField: 'date',
+            sortDirection: 'DESC',
+            sortFields: [{ field: 'folio', label: 'Folio' }, { field: 'date', label: 'Fecha' }, { field: 'role', label: 'Rol' }]
         }
     },
     computed: {
@@ -41,9 +46,14 @@ export default {
         async fetchProofs() {
             this.loading = true;
             try {
-                const res = await api(`/api/v1/proof?page=${this.page}&size=${this.size}`);
+                const res = await api(`/api/v1/proof?page=${this.page}&size=${this.size}&sort=${this.sortField}&direction=${this.sortDirection}`);
                 if (!res.ok) throw new Error('Error al cargar historial');
                 const page = await res.json();
+                if (this.page > 0 && page.totalPages && this.page >= page.totalPages) {
+                    this.page = Math.max(0, page.totalPages - 1);
+                    await this.fetchProofs();
+                    return;
+                }
                 this.proofs = page.content ?? page;
                 this.totalPages = page.totalPages ?? 0;
                 this.totalElements = page.totalElements ?? this.proofs.length;
@@ -55,8 +65,30 @@ export default {
             }
         },
         setPage(newPage) {
-            if (newPage < 0 || newPage >= this.totalPages) return;
+            if (newPage < 0 || newPage >= this.totalPages || newPage === this.page) return;
             this.page = newPage;
+            this.fetchProofs();
+        },
+        setSize(size) {
+            if (this.size === size) return;
+            this.size = size;
+            this.page = 0;
+            this.fetchProofs();
+        },
+        setSort(field) {
+            if (this.sortField === field) {
+                this.sortDirection = this.sortDirection === 'ASC' ? 'DESC' : 'ASC';
+            } else {
+                this.sortField = field;
+                this.sortDirection = 'ASC';
+            }
+            this.page = 0;
+            this.fetchProofs();
+        },
+        setDirection(direction) {
+            if (this.sortDirection === direction) return;
+            this.sortDirection = direction;
+            this.page = 0;
             this.fetchProofs();
         },
         applyFilters() {
@@ -72,7 +104,6 @@ export default {
             }
             if (this.filterDateFrom) result = result.filter(p => p.date >= this.filterDateFrom);
             if (this.filterDateTo) result = result.filter(p => p.date <= this.filterDateTo);
-            result.sort((a, b) => b.date?.localeCompare(a.date));
             this.filteredProofs = result;
         },
         async downloadPdf(folio) {
@@ -134,27 +165,38 @@ export default {
                 <div class="stat stat-organizador"><span class="stat-value">{{ stats.organizadores }}</span>Organizadores</div>
             </div>
         </div>
-        <div class="filters-card">
-            <div class="search-wrapper">
-                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="currentColor">
-                    <path d="M796-121 533-384q-30 26-69.5 41T378-328q-108 0-183-75t-75-183q0-108 75-183t183-75q108 0 183 75t75 183q0 46-15 85.5T597-507l263 263-64 64ZM378-408q70 0 119-49t49-119q0-70-49-119t-119-49q-70 0-119 49T210-576q0 70 49 119t119 49Z"/>
-                </svg>
-                <input v-model="searchQuery" @input="applyFilters" placeholder="Buscar por nombre, folio, evento..." class="search-input" />
+<div class="sticky-controls">
+            <div class="filters-card">
+                <div class="search-wrapper">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="currentColor">
+                        <path d="M796-121 533-384q-30 26-69.5 41T378-328q-108 0-183-75t-75-183q0-108 75-183t183-75q108 0 183 75t75 183q0 46-15 85.5T597-507l263 263-64 64ZM378-408q70 0 119-49t49-119q0-70-49-119t-119-49q-70 0-119 49T210-576q0 70 49 119t119 49Z"/>
+                    </svg>
+                    <input v-model="searchQuery" @input="applyFilters" placeholder="Buscar por nombre, folio, evento..." class="search-input" />
+                </div>
+                <div class="date-filters">
+                    <label>Desde:
+                        <input type="date" v-model="filterDateFrom" @change="applyFilters" />
+                    </label>
+                    <label>Hasta:
+                        <input type="date" v-model="filterDateTo" @change="applyFilters" />
+                    </label>
+                </div>
+                <button @click="fetchProofs" class="btn-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="currentColor">
+                        <path d="M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t120 75.5q-11-13-18-29l45 66q40 42 61 97.5t21 122q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/>
+                    </svg>
+                    Actualizar
+                </button>
             </div>
-            <div class="date-filters">
-                <label>Desde:
-                    <input type="date" v-model="filterDateFrom" @change="applyFilters" />
-                </label>
-                <label>Hasta:
-                    <input type="date" v-model="filterDateTo" @change="applyFilters" />
-                </label>
-            </div>
-            <button @click="fetchProofs" class="btn-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="currentColor">
-                    <path d="M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Z"/>
-                </svg>
-                Actualizar
-            </button>
+            <PaginationToolbar
+                :page="page" :size="size"
+                :total-pages="totalPages" :total-elements="totalElements"
+                :sort-field="sortField" :sort-direction="sortDirection"
+                :sort-fields="sortFields"
+                @set-page="setPage($event)"
+                @set-size="setSize($event)"
+                @set-sort="setSort($event)"
+                @set-direction="setDirection($event)" />
         </div>
         <div v-if="loading" class="loading">
             <div class="spinner"></div>
@@ -208,13 +250,15 @@ export default {
                 </div>
             </div>
         </div>
-        <div v-if="totalPages > 0" class="pagination">
-            <button @click="setPage(0)" :disabled="page === 0" class="page-btn">&laquo;</button>
-            <button @click="setPage(page - 1)" :disabled="page === 0" class="page-btn">&lsaquo;</button>
-            <span class="page-info">Página {{ page + 1 }} de {{ totalPages }} ({{ totalElements }} resultados)</span>
-            <button @click="setPage(page + 1)" :disabled="page >= totalPages - 1" class="page-btn">&rsaquo;</button>
-            <button @click="setPage(totalPages - 1)" :disabled="page >= totalPages - 1" class="page-btn">&raquo;</button>
-        </div>
+        <PaginationToolbar
+            :page="page" :size="size"
+            :total-pages="totalPages" :total-elements="totalElements"
+            :sort-field="sortField" :sort-direction="sortDirection"
+            :sort-fields="sortFields"
+            @set-page="setPage($event)"
+            @set-size="setSize($event)"
+            @set-sort="setSort($event)"
+            @set-direction="setDirection($event)" />
     </div>
 </template>
 <style scoped>
@@ -593,41 +637,5 @@ export default {
 .btn-delete:hover {
     background: #FEE2E2;
     border-color: #EF4444;
-}
-
-.pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 16px 0;
-}
-
-.page-btn {
-    padding: 8px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-.page-btn:hover:not(:disabled) {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
-}
-
-.page-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.page-info {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    padding: 0 8px;
 }
 </style>

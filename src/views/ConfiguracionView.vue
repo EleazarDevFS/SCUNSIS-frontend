@@ -1,9 +1,11 @@
 <script>
 import { api } from '../utils/api.js';
 import { useToast } from 'vue-toastification';
+import PaginationToolbar from '../components/PaginationToolbar.vue';
 
 export default {
     name: 'ConfiguracionView',
+    components: { PaginationToolbar },
     setup() {
         return { toast: useToast() };
     },
@@ -11,19 +13,47 @@ export default {
         return {
             activeTab: 'senders',
             senders: [],
+            senderPage: 0,
+            senderSize: 20,
+            senderTotalPages: 0,
+            senderTotalElements: 0,
+            senderSortField: 'name',
+            senderSortDirection: 'ASC',
+            senderSortFields: [{ field: 'name', label: 'Nombre' }, { field: 'campus', label: 'Campus' }, { field: 'senderId', label: 'ID' }],
             senderSearch: '',
             showSenderForm: false,
             editingSender: null,
             senderForm: { name: '', campus: '' },
             events: [],
+            eventPage: 0,
+            eventSize: 20,
+            eventTotalPages: 0,
+            eventTotalElements: 0,
+            eventSortField: 'eventName',
+            eventSortDirection: 'ASC',
+            eventSortFields: [{ field: 'eventName', label: 'Nombre' }, { field: 'startDate', label: 'Inicio' }, { field: 'eventId', label: 'ID' }],
             showEventForm: false,
             editingEvent: null,
             eventForm: { eventName: '', eventType: '', eventPlace: '', eventDescription: '', startDate: '', endDate: '' },
             activities: [],
+            activityPage: 0,
+            activitySize: 20,
+            activityTotalPages: 0,
+            activityTotalElements: 0,
+            activitySortField: 'activityName',
+            activitySortDirection: 'ASC',
+            activitySortFields: [{ field: 'activityName', label: 'Nombre' }, { field: 'startDate', label: 'Inicio' }, { field: 'activityId', label: 'ID' }],
             showActivityForm: false,
             editingActivity: null,
             activityForm: { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' },
             receivers: [],
+            receiverPage: 0,
+            receiverSize: 20,
+            receiverTotalPages: 0,
+            receiverTotalElements: 0,
+            receiverSortField: 'name',
+            receiverSortDirection: 'ASC',
+            receiverSortFields: [{ field: 'name', label: 'Nombre' }, { field: 'lastName', label: 'Apellido' }, { field: 'receiverId', label: 'ID' }],
             receiverSearch: '',
             showReceiverForm: false,
             editingReceiver: null,
@@ -39,6 +69,13 @@ export default {
             bulkResult: null,
             bulkSubmitting: false,
             users: [],
+            userPage: 0,
+            userSize: 20,
+            userTotalPages: 0,
+            userTotalElements: 0,
+            userSortField: 'username',
+            userSortDirection: 'ASC',
+            userSortFields: [{ field: 'username', label: 'Usuario' }, { field: 'role', label: 'Rol' }, { field: 'id', label: 'ID' }],
             showUserForm: false,
             editingUser: null,
             userForm: { username: '', password: '', role: 'CAPTURISTA' },
@@ -65,10 +102,17 @@ export default {
         async fetchSenders() {
             this.loading = true;
             try {
-                const res = await api('/api/v1/sender?size=1000');
+                const res = await api(`/api/v1/sender?page=${this.senderPage}&size=${this.senderSize}&sort=${this.senderSortField}&direction=${this.senderSortDirection}`);
                 if (!res.ok) throw new Error('Error al cargar emisores');
                 const page = await res.json();
+                if (this.senderPage > 0 && page.totalPages && this.senderPage >= page.totalPages) {
+                    this.senderPage = Math.max(0, page.totalPages - 1);
+                    await this.fetchSenders();
+                    return;
+                }
                 this.senders = page.content ?? page;
+                this.senderTotalPages = page.totalPages ?? 0;
+                this.senderTotalElements = page.totalElements ?? this.senders.length;
             } catch (err) {
                 if (err.message !== 'Sesion expirada') this.toast.error(err.message);
             } finally { this.loading = false; }
@@ -89,9 +133,26 @@ export default {
             try { const res = await api(`/api/v1/sender/${id}`, { method: 'DELETE' }); if (!res.ok) throw new Error(); await this.fetchSenders(); this.toast.success('Emisor eliminado'); }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); }
         },
-        async fetchEvents() {
+        async fetchEvents(full = false) {
             this.loading = true;
-            try { const res = await api('/api/v1/event?size=1000'); if (!res.ok) throw new Error(); const page = await res.json(); this.events = page.content ?? page; }
+            try {
+                const url = full
+                    ? '/api/v1/event?page=0&size=1000&sort=eventName&direction=ASC'
+                    : `/api/v1/event?page=${this.eventPage}&size=${this.eventSize}&sort=${this.eventSortField}&direction=${this.eventSortDirection}`;
+                const res = await api(url);
+                if (!res.ok) throw new Error();
+                const page = await res.json();
+                if (!full && this.eventPage > 0 && page.totalPages && this.eventPage >= page.totalPages) {
+                    this.eventPage = Math.max(0, page.totalPages - 1);
+                    await this.fetchEvents();
+                    return;
+                }
+                this.events = page.content ?? page;
+                if (!full) {
+                    this.eventTotalPages = page.totalPages ?? 0;
+                    this.eventTotalElements = page.totalElements ?? this.events.length;
+                }
+            }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
         openNewEvent() { this.editingEvent = null; this.eventForm = { eventName: '', eventType: 'FISICO', eventPlace: '', eventDescription: '', startDate: '', endDate: '' }; this.showEventForm = true; },
@@ -114,15 +175,26 @@ export default {
         async fetchActivities() {
             this.loading = true;
             try {
-                const [actRes, evtRes] = await Promise.all([api('/api/v1/activity?size=1000'), api('/api/v1/event?size=1000')]);
+                const [actRes, evtRes] = await Promise.all([
+                    api(`/api/v1/activity?page=${this.activityPage}&size=${this.activitySize}&sort=${this.activitySortField}&direction=${this.activitySortDirection}`),
+                    api('/api/v1/event?page=0&size=1000&sort=eventName&direction=ASC')
+                ]);
                 if (!actRes.ok) throw new Error();
-                let actPage = await actRes.json(); this.activities = actPage.content ?? actPage;
+                let actPage = await actRes.json();
+                if (this.activityPage > 0 && actPage.totalPages && this.activityPage >= actPage.totalPages) {
+                    this.activityPage = Math.max(0, actPage.totalPages - 1);
+                    await this.fetchActivities();
+                    return;
+                }
+                this.activities = actPage.content ?? actPage;
+                this.activityTotalPages = actPage.totalPages ?? 0;
+                this.activityTotalElements = actPage.totalElements ?? this.activities.length;
                 let evtPage = await evtRes.json(); this.events = evtPage.content ?? evtPage;
             }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
-        openNewActivity() { this.editingActivity = null; this.activityForm = { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' }; this.showActivityForm = true; this.fetchEvents(); },
-        openEditActivity(a) { this.editingActivity = a; this.activityForm = { eventId: a.eventId || '', activityName: a.activityName, activityDescription: a.activityDescription || '', activityPlace: a.activityPlace || '', startDate: a.startDate || '', endDate: a.endDate || '' }; this.showActivityForm = true; this.fetchEvents(); },
+        openNewActivity() { this.editingActivity = null; this.activityForm = { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' }; this.showActivityForm = true; this.fetchEvents(true); },
+        openEditActivity(a) { this.editingActivity = a; this.activityForm = { eventId: a.eventId || '', activityName: a.activityName, activityDescription: a.activityDescription || '', activityPlace: a.activityPlace || '', startDate: a.startDate || '', endDate: a.endDate || '' }; this.showActivityForm = true; this.fetchEvents(true); },
         cancelActivityForm() { this.showActivityForm = false; this.editingActivity = null; this.activityForm = { eventId: '', activityName: '', activityDescription: '', activityPlace: '', startDate: '', endDate: '' }; },
         async saveActivity() {
             if (!this.activityForm.activityName.trim()) { this.toast.error('El nombre es requerido'); return; }
@@ -140,9 +212,48 @@ export default {
             try { const res = await api(`/api/v1/activity/${id}`, { method: 'DELETE' }); if (!res.ok) throw new Error(); await this.fetchActivities(); this.toast.success('Actividad eliminada'); }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); }
         },
+        setPageFor(prefix, fetchFn, newPage) {
+            if (newPage < 0 || newPage >= this[`${prefix}TotalPages`] || newPage === this[`${prefix}Page`]) return;
+            this[`${prefix}Page`] = newPage;
+            fetchFn();
+        },
+        setSizeFor(prefix, fetchFn, size) {
+            if (this[`${prefix}Size`] === size) return;
+            this[`${prefix}Size`] = size;
+            this[`${prefix}Page`] = 0;
+            fetchFn();
+        },
+        setSortFor(prefix, fetchFn, field) {
+            if (this[`${prefix}SortField`] === field) {
+                this[`${prefix}SortDirection`] = this[`${prefix}SortDirection`] === 'ASC' ? 'DESC' : 'ASC';
+            } else {
+                this[`${prefix}SortField`] = field;
+                this[`${prefix}SortDirection`] = 'ASC';
+            }
+            this[`${prefix}Page`] = 0;
+            fetchFn();
+        },
+        setDirectionFor(prefix, fetchFn, direction) {
+            if (this[`${prefix}SortDirection`] === direction) return;
+            this[`${prefix}SortDirection`] = direction;
+            this[`${prefix}Page`] = 0;
+            fetchFn();
+        },
         async fetchReceivers() {
             this.loading = true;
-            try { const res = await api('/api/v1/receiver?size=1000'); if (!res.ok) throw new Error(); const page = await res.json(); this.receivers = page.content ?? page; }
+            try {
+                const res = await api(`/api/v1/receiver?page=${this.receiverPage}&size=${this.receiverSize}&sort=${this.receiverSortField}&direction=${this.receiverSortDirection}`);
+                if (!res.ok) throw new Error();
+                const page = await res.json();
+                if (this.receiverPage > 0 && page.totalPages && this.receiverPage >= page.totalPages) {
+                    this.receiverPage = Math.max(0, page.totalPages - 1);
+                    await this.fetchReceivers();
+                    return;
+                }
+                this.receivers = page.content ?? page;
+                this.receiverTotalPages = page.totalPages ?? 0;
+                this.receiverTotalElements = page.totalElements ?? this.receivers.length;
+            }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
         openNewReceiver() { this.editingReceiver = null; this.receiverForm = { nombre: '', primer_apellido: '', segundo_apellido: '', telefono: '', email: '', grado_academico: '' }; this.showReceiverForm = true; },
@@ -166,7 +277,7 @@ export default {
             this.bulkResult = null; this.bulkFile = null; this.bulkEventId = ''; this.bulkActivityId = ''; this.bulkSenderId = ''; this.bulkRole = '';
             try {
                 const [evtRes, actRes, sndRes] = await Promise.all([
-                    api('/api/v1/event?size=1000'), api('/api/v1/activity?size=1000'), api('/api/v1/sender?size=1000')
+                    api('/api/v1/event?size=1000'), api('/api/v1/activity?page=0&size=1000&sort=activityName&direction=ASC'), api('/api/v1/sender?size=1000')
                 ]);
                 let evtPage = await evtRes.json(); this.bulkEvents = evtPage.content ?? evtPage;
                 let actPage = await actRes.json(); this.bulkActivities = actPage.content ?? actPage;
@@ -194,7 +305,19 @@ export default {
         },
         async fetchUsers() {
             this.loading = true;
-            try { const res = await api('/api/v1/users?size=1000'); if (!res.ok) throw new Error(); const page = await res.json(); this.users = page.content ?? page; }
+            try {
+                const res = await api(`/api/v1/users?page=${this.userPage}&size=${this.userSize}&sort=${this.userSortField}&direction=${this.userSortDirection}`);
+                if (!res.ok) throw new Error();
+                const page = await res.json();
+                if (this.userPage > 0 && page.totalPages && this.userPage >= page.totalPages) {
+                    this.userPage = Math.max(0, page.totalPages - 1);
+                    await this.fetchUsers();
+                    return;
+                }
+                this.users = page.content ?? page;
+                this.userTotalPages = page.totalPages ?? 0;
+                this.userTotalElements = page.totalElements ?? this.users.length;
+            }
             catch (err) { if (err.message !== 'Sesion expirada') this.toast.error(err.message); } finally { this.loading = false; }
         },
         openNewUser() { this.editingUser = null; this.userForm = { username: '', password: '', role: 'CAPTURISTA' }; this.showUserForm = true; },
@@ -282,7 +405,16 @@ export default {
                     <div class="form-actions"><button @click="saveSender" class="btn-primary">Guardar</button><button @click="cancelSenderForm" class="btn-secondary">Cancelar</button></div>
                 </div>
                 <div v-if="loading" class="loading"><div class="spinner"></div></div>
-                <table v-else-if="filteredSenders.length" class="data-table">
+                <PaginationToolbar v-else
+                    :page="senderPage" :size="senderSize"
+                    :total-pages="senderTotalPages" :total-elements="senderTotalElements"
+                    :sort-field="senderSortField" :sort-direction="senderSortDirection"
+                    :sort-fields="senderSortFields"
+                    @set-page="setPageFor('sender', fetchSenders, $event)"
+                    @set-size="setSizeFor('sender', fetchSenders, $event)"
+                    @set-sort="setSortFor('sender', fetchSenders, $event)"
+                    @set-direction="setDirectionFor('sender', fetchSenders, $event)" />
+                <table v-if="!loading && filteredSenders.length" class="data-table">
                     <thead><tr><th>ID</th><th>Nombre</th><th>Sede/Campus</th><th>Acciones</th></tr></thead>
                     <tbody>
                         <tr v-for="s in filteredSenders" :key="s.senderId">
@@ -296,7 +428,7 @@ export default {
                         </tr>
                     </tbody>
                 </table>
-                <div v-else class="empty">{{ senderSearch ? 'No se encontraron emisores' : 'No hay emisores registrados' }}</div>
+                <div v-if="!loading && !filteredSenders.length" class="empty">{{ senderSearch ? 'No se encontraron emisores' : 'No hay emisores registrados' }}</div>
             </div>
             <!-- Eventos -->
             <div v-if="activeTab === 'events'">
@@ -312,7 +444,16 @@ export default {
                     <div class="form-actions"><button @click="saveEvent" class="btn-primary">Guardar</button><button @click="cancelEventForm" class="btn-secondary">Cancelar</button></div>
                 </div>
                 <div v-if="loading" class="loading"><div class="spinner"></div></div>
-                <table v-else-if="events.length" class="data-table">
+                <PaginationToolbar v-else
+                    :page="eventPage" :size="eventSize"
+                    :total-pages="eventTotalPages" :total-elements="eventTotalElements"
+                    :sort-field="eventSortField" :sort-direction="eventSortDirection"
+                    :sort-fields="eventSortFields"
+                    @set-page="setPageFor('event', fetchEvents, $event)"
+                    @set-size="setSizeFor('event', fetchEvents, $event)"
+                    @set-sort="setSortFor('event', fetchEvents, $event)"
+                    @set-direction="setDirectionFor('event', fetchEvents, $event)" />
+                <table v-if="!loading && events.length" class="data-table">
                     <thead><tr><th>ID</th><th>Nombre</th><th>Tipo</th><th>Lugar</th><th>Inicio</th><th>Fin</th><th>Acciones</th></tr></thead>
                     <tbody>
                         <tr v-for="e in events" :key="e.eventId">
@@ -326,7 +467,7 @@ export default {
                         </tr>
                     </tbody>
                 </table>
-                <div v-else class="empty">No hay eventos registrados</div>
+                <div v-if="!loading && !events.length" class="empty">No hay eventos registrados</div>
             </div>
             <!-- Actividades -->
             <div v-if="activeTab === 'activities'">
@@ -342,7 +483,16 @@ export default {
                     <div class="form-actions"><button @click="saveActivity" class="btn-primary">Guardar</button><button @click="cancelActivityForm" class="btn-secondary">Cancelar</button></div>
                 </div>
                 <div v-if="loading" class="loading"><div class="spinner"></div></div>
-                <table v-else-if="activities.length" class="data-table">
+                <PaginationToolbar v-else
+                    :page="activityPage" :size="activitySize"
+                    :total-pages="activityTotalPages" :total-elements="activityTotalElements"
+                    :sort-field="activitySortField" :sort-direction="activitySortDirection"
+                    :sort-fields="activitySortFields"
+                    @set-page="setPageFor('activity', fetchActivities, $event)"
+                    @set-size="setSizeFor('activity', fetchActivities, $event)"
+                    @set-sort="setSortFor('activity', fetchActivities, $event)"
+                    @set-direction="setDirectionFor('activity', fetchActivities, $event)" />
+                <table v-if="!loading && activities.length" class="data-table">
                     <thead><tr><th>ID</th><th>Nombre</th><th>Evento</th><th>Lugar</th><th>Inicio</th><th>Acciones</th></tr></thead>
                     <tbody>
                         <tr v-for="a in activities" :key="a.activityId">
@@ -355,7 +505,7 @@ export default {
                         </tr>
                     </tbody>
                 </table>
-                <div v-else class="empty">No hay actividades registradas</div>
+                <div v-if="!loading && !activities.length" class="empty">No hay actividades registradas</div>
             </div>
             <!-- Receptores -->
             <div v-if="activeTab === 'receivers'">
@@ -375,7 +525,16 @@ export default {
                     <div class="form-actions"><button @click="saveReceiver" class="btn-primary">Guardar</button><button @click="cancelReceiverForm" class="btn-secondary">Cancelar</button></div>
                 </div>
                 <div v-if="loading" class="loading"><div class="spinner"></div></div>
-                <table v-else-if="filteredReceivers.length" class="data-table">
+                <PaginationToolbar v-else
+                    :page="receiverPage" :size="receiverSize"
+                    :total-pages="receiverTotalPages" :total-elements="receiverTotalElements"
+                    :sort-field="receiverSortField" :sort-direction="receiverSortDirection"
+                    :sort-fields="receiverSortFields"
+                    @set-page="setPageFor('receiver', fetchReceivers, $event)"
+                    @set-size="setSizeFor('receiver', fetchReceivers, $event)"
+                    @set-sort="setSortFor('receiver', fetchReceivers, $event)"
+                    @set-direction="setDirectionFor('receiver', fetchReceivers, $event)" />
+                <table v-if="!loading && filteredReceivers.length" class="data-table">
                     <thead><tr><th>ID</th><th>Nombre</th><th>Apellidos</th><th>Email</th><th>Teléfono</th><th>Grado</th><th>Acciones</th></tr></thead>
                     <tbody>
                         <tr v-for="r in filteredReceivers" :key="r.receiverId">
@@ -389,7 +548,7 @@ export default {
                         </tr>
                     </tbody>
                 </table>
-                <div v-else class="empty">{{ receiverSearch ? 'No se encontraron receptores' : 'No hay receptores registrados' }}</div>
+                <div v-if="!loading && !filteredReceivers.length" class="empty">{{ receiverSearch ? 'No se encontraron receptores' : 'No hay receptores registrados' }}</div>
             </div>
         <!-- Usuarios -->
         <div v-if="activeTab === 'users'">
@@ -402,7 +561,16 @@ export default {
                 <div class="form-actions"><button @click="saveUser" class="btn-primary">Guardar</button><button @click="cancelUserForm" class="btn-secondary">Cancelar</button></div>
             </div>
             <div v-if="loading" class="loading"><div class="spinner"></div></div>
-            <table v-else-if="users.length" class="data-table">
+            <PaginationToolbar v-else
+                :page="userPage" :size="userSize"
+                :total-pages="userTotalPages" :total-elements="userTotalElements"
+                :sort-field="userSortField" :sort-direction="userSortDirection"
+                :sort-fields="userSortFields"
+                @set-page="setPageFor('user', fetchUsers, $event)"
+                @set-size="setSizeFor('user', fetchUsers, $event)"
+                @set-sort="setSortFor('user', fetchUsers, $event)"
+                @set-direction="setDirectionFor('user', fetchUsers, $event)" />
+            <table v-if="!loading && users.length" class="data-table">
                 <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Acciones</th></tr></thead>
                 <tbody>
                     <tr v-for="u in users" :key="u.id">
@@ -413,7 +581,7 @@ export default {
                     </tr>
                 </tbody>
             </table>
-            <div v-else class="empty">No hay usuarios registrados</div>
+            <div v-if="!loading && !users.length" class="empty">No hay usuarios registrados</div>
         </div>
         <!-- Carga masiva -->
         <div v-if="activeTab === 'bulk'">

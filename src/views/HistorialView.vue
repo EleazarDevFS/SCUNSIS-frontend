@@ -250,15 +250,6 @@ export default {
                 </div>
             </div>
         </div>
-        <PaginationToolbar
-            :page="page" :size="size"
-            :total-pages="totalPages" :total-elements="totalElements"
-            :sort-field="sortField" :sort-direction="sortDirection"
-            :sort-fields="sortFields"
-            @set-page="setPage($event)"
-            @set-size="setSize($event)"
-            @set-sort="setSort($event)"
-            @set-direction="setDirection($event)" />
     </div>
 </template>
 <style scoped>
